@@ -1,0 +1,45 @@
+# noise-to-signal phase 1 prompt buckets
+# Each bucket defines a thematic prompt and optional variations.
+# Used by training/sd_generate.py to parameterize Stable Diffusion runs.
+
+version: 1
+model: "runwayml/stable-diffusion-v1-5"
+default:
+  width: 512
+  height: 512
+  steps: 28
+  guidance_scale: 7.5
+  sampler: "DDIM"
+  batch_size: 4
+  seed: null
+  negative_prompt: |
+    text, typography, letters, watermark, logo, human, face, hands, body,
+    photorealistic, buildings, weapon, vehicle, nsfw, signature
+buckets:
+  - name: abstract_flux
+    prompt: |
+      luminous abstract composition, flowing ribbons of color, volumetric light,
+      cinematic lighting, highly detailed, studio quality, trending on artstation
+    cfg_override: 8.0
+    steps_override: 30
+  - name: glitch_waves
+    prompt: |
+      glitch art, fragmented pixels, chromatic aberration, noise waves,
+      datamosh aesthetic, cyberpunk palette, experimental digital art
+    cfg_override: 7.0
+    steps_override: 24
+  - name: color_fields
+    prompt: |
+      color field painting, soft gradients, ethereal haze, dreamy atmosphere,
+      matte texture, calm mood, modern art, rothko inspired
+    cfg_override: 6.5
+  - name: organic_nebula
+    prompt: |
+      organic nebula forms, biomorphic tendrils, deep space dust, iridescent glow,
+      long exposure photography, surreal cosmic clouds
+    steps_override: 32
+  - name: spectral_cells
+    prompt: |
+      microscopic photography, spectral cells, refracted light, shimmering membranes,
+      translucent materials, ultra macro lens, sci-fi biology
+    cfg_override: 8.5
