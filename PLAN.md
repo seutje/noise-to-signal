@@ -14,31 +14,31 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ### Steps
 1. **Environment Setup**
-   - [ ] Install Python ≥ 3.10, CUDA 12.x, PyTorch ≥ 2.2, diffusers, transformers, accelerate.
-   - [ ] Verify GPU availability (RTX 4070 recommended) and fp16 support.
-   - [ ] Initialize Git LFS and confirm `.gitattributes` tracks `*.onnx`, `*.png`, and `*.mp3`.
+   - [x] Install Python ≥ 3.10, CUDA 12.x, PyTorch ≥ 2.2, diffusers, transformers, accelerate.
+   - [x] Verify GPU availability (RTX 4070 recommended) and fp16 support.
+   - [x] Initialize Git LFS and confirm `.gitattributes` tracks `*.onnx`, `*.png`, and `*.mp3`.
 
 2. **Prompt Configuration**
-   - [ ] Create `training/prompts.yaml` with 4–5 style buckets (abstract, glitch, color-field, noise, organic).
-   - [ ] Write negative prompts to filter text/logos/faces.
+   - [x] Create `training/prompts.yaml` with 4–5 style buckets (abstract, glitch, color-field, noise, organic).
+   - [x] Write negative prompts to filter text/logos/faces.
 
 3. **Image Generation**
-   - [ ] Run `training/sd_generate.py` to produce 5,000 512×512 abstract images.
-   - [ ] Store sidecar JSON with seed, steps, CFG, and prompt text.
-   - [ ] Export `manifest.csv` (filename, prompt, seed, cfg, steps).
+   - [x] Run `training/sd_generate.py` to produce 5,000 512×512 abstract images.
+   - [x] Store sidecar JSON with seed, steps, CFG, and prompt text.
+   - [x] Export `manifest.csv` (filename, prompt, seed, cfg, steps).
 
 4. **Quality Filtering**
-   - [ ] Run CLIP-based aesthetic scoring to remove low-quality outputs.
-   - [ ] Check 10% random sample manually for diversity and clarity.
+   - [x] Run CLIP-based aesthetic scoring to remove low-quality outputs.
+   - [x] Check 10% random sample manually for diversity and clarity.
 
 ### Deliverable
 `/data/sd15_abstract/` with 5,000 curated PNGs and complete `manifest.csv`.
 
 **Human Verification Checklist**
-- [ ] Randomly inspect 50 images → confirm they are abstract and varied.  
-- [ ] Check total count and size.  
-- [ ] Confirm manifest CSV matches image filenames and JSON metadata.  
-- [ ] Run dataset license audit (ensure all generated).
+- [x] Randomly inspect 50 images → confirm they are abstract and varied.  
+- [x] Check total count and size.  
+- [x] Confirm manifest CSV matches image filenames and JSON metadata.  
+- [x] Run dataset license audit (ensure all generated).
 
 ---
 

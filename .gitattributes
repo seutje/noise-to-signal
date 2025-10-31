@@ -1,0 +1,4 @@
+# noise-to-signal large binary tracking
+*.onnx filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text

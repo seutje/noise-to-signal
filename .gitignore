@@ -25,3 +25,10 @@ yarn-error.log*
 
 # WSL
 *:Zone.Identifier
+
+# Python cache
+/training/__pycache__/
+/venv/
+
+# Training data
+/data/sd15_abstract/*

@@ -429,7 +429,7 @@ loop();
 - Album playlist loads from `/album/tracklist.json`; tracks play in order with auto-advance and resume-on-refresh.  
 - Visualizer responds to playback features; ≥30 fps at 384 px (Canvas and Three.js).  
 - `npm test` passes with ≥90% coverage (mocks for ORT/Three/Audio).  
-- Repo includes `/data` (5k SD images), `/models` (ONNX + meta), and `/album` (MP3s + tracklist) via **Git LFS**.  
+- Repo includes `/models` (ONNX + meta), and `/album` (MP3s + tracklist) via **Git LFS**.  
 - LICENSE, `DATA_LICENSE.md`, and `AUDIO_LICENSE.md` included.  
 - No server, no build; dependencies from CDN or vendored; minimal runtime deps.
 
