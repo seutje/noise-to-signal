@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 
 from .config_schema import RenderConfig, load_render_config
 from . import PACKAGE_ROOT
+from .decoder import DecoderSession, DecoderUnavailableError
+from .frame_writer import FFMpegError, concat_videos
 from .render_track import render_track, TrackRenderSummary
 from .controller import get_anchor_sets
 
@@ -76,6 +78,9 @@ def render_album(
     *,
     dry_run: bool = False,
     verbose: bool = False,
+    keep_frames: bool = False,
+    ffmpeg_path: str = "ffmpeg",
+    skip_previews: bool = False,
 ) -> None:
     """Render each track defined in the configuration."""
     _setup_logging(verbose)
@@ -99,14 +104,41 @@ def render_album(
     config.output_root.mkdir(parents=True, exist_ok=True)
 
     track_summaries: List[TrackRenderSummary] = []
+    track_videos: List[Path] = []
+
+    try:
+        decoder = DecoderSession(
+            execution_provider=config.decoder.execution_provider,
+            batch_size=config.decoder.batch_size,
+        )
+    except DecoderUnavailableError as exc:
+        LOG.error("Decoder initialisation failed: %s", exc)
+        raise
 
     for track in config.tracks:
         LOG.info("Rendering track '%s' from %s", track.id, track.src)
         track_output = config.output_root / track.id
         track_output.mkdir(parents=True, exist_ok=True)
-        summary = render_track(track, config, track_output)
+        summary = render_track(
+            track,
+            config,
+            track_output,
+            decoder=decoder,
+            ffmpeg_path=ffmpeg_path,
+            keep_frames=keep_frames,
+            preview=not skip_previews,
+        )
         if summary:
             track_summaries.append(summary)
+            track_videos.append(summary.video_path)
+
+    if len(track_videos) > 1:
+        album_path = config.output_root / "album.mp4"
+        try:
+            concat_videos(track_videos, output_path=album_path, ffmpeg_path=ffmpeg_path)
+            LOG.info("Album concatenation completed → %s", album_path)
+        except FFMpegError as exc:
+            LOG.warning("Album concatenation failed: %s", exc)
 
     _write_run_metadata(config, track_summaries)
 
@@ -160,6 +192,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Enable verbose logging.",
     )
     parser.add_argument(
+        "--keep-frames",
+        action="store_true",
+        help="Persist intermediate decoded frames to disk.",
+    )
+    parser.add_argument(
+        "--ffmpeg",
+        type=str,
+        default="ffmpeg",
+        help="Path to the ffmpeg executable.",
+    )
+    parser.add_argument(
+        "--no-previews",
+        action="store_true",
+        help="Disable preview PNG/GIF generation.",
+    )
+    parser.add_argument(
         "--list-presets",
         action="store_true",
         help="List available preset overlays and exit.",
@@ -194,9 +242,17 @@ def _write_run_metadata(
                 "id": summary.track_id,
                 "anchor_set": summary.anchor_set,
                 "frames": summary.frames,
+                "duration_seconds": summary.duration,
                 "latents": str(summary.latents_path),
+                "video": str(summary.video_path),
+                "preview_still": str(summary.preview_still) if summary.preview_still else None,
+                "preview_anim": str(summary.preview_anim) if summary.preview_anim else None,
                 "features_cache": str(summary.feature_cache),
                 "feature_checksum": summary.feature_checksum,
+                "video_checksum": summary.checksum,
+                "decoder_provider": summary.decode_provider,
+                "decoder_precision": summary.decode_precision,
+                "timings": summary.timings,
             }
             for summary in track_summaries
         ],
@@ -208,6 +264,9 @@ def _write_run_metadata(
     }
     if track_seeds:
         metadata["track_seeds"] = track_seeds
+    album_video = config.output_root / "album.mp4"
+    if album_video.exists():
+        metadata["album_video"] = str(album_video)
     run_path = config.output_root / "run.json"
     run_path.write_text(json.dumps(metadata, indent=2))
     LOG.info("Run metadata written to %s", run_path)
@@ -237,6 +296,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         config,
         dry_run=args.dry_run,
         verbose=args.verbose,
+        keep_frames=args.keep_frames,
+        ffmpeg_path=args.ffmpeg,
+        skip_previews=args.no_previews,
     )
 
 

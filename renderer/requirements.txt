@@ -2,6 +2,7 @@ numpy>=1.24.0
 librosa>=0.10.1
 soundfile>=0.12.1
 pyyaml>=6.0.0
+imageio>=2.31.0
 
 # Testing utilities (Phase 5 will expand this list)
 pytest>=7.4.0

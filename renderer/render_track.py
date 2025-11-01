@@ -2,16 +2,21 @@
 Track-level orchestration for the noise-to-signal renderer.
 
 The `render_track` function covers feature extraction, latent trajectory
-generation, and (in later phases) frame decoding + post-processing.
+generation, decoder execution, post-processing, and FFmpeg packaging.
 """
 
 from __future__ import annotations
-
+import json
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from .config_schema import RenderConfig, TrackConfig
+from .decoder import DecoderSession
+from .frame_writer import FFMpegWriter, PreviewBundle, compute_sha256
+from .postfx import PostFXProcessor, apply_postfx
 
 LOG = logging.getLogger("renderer.track")
 
@@ -21,10 +26,18 @@ class TrackRenderSummary:
     track_id: str
     output_dir: Path
     latents_path: Path
+    video_path: Path
     frames: int
+    duration: float
     anchor_set: str
     feature_cache: Path
     feature_checksum: str
+    preview_still: Optional[Path]
+    preview_anim: Optional[Path]
+    checksum: str
+    decode_provider: str
+    decode_precision: str
+    timings: dict[str, float]
 
 
 def render_track(
@@ -32,14 +45,19 @@ def render_track(
     config: RenderConfig,
     output_dir: Path,
     *,
+    decoder: DecoderSession,
+    ffmpeg_path: str = "ffmpeg",
+    keep_frames: bool = False,
+    preview: bool = True,
     dry_run: bool = False,
 ) -> TrackRenderSummary | None:
     """
     Render a single track according to the supplied configuration.
 
-    For Phase 3 this covers:
+    Pipeline steps:
     - Audio feature extraction with caching.
     - Latent trajectory generation and persistence for downstream decoding.
+    - Batched decoder execution with PostFX + FFmpeg streaming.
     """
     if dry_run:
         LOG.info("[dry-run] Track %s → %s", track.id, output_dir)
@@ -50,6 +68,9 @@ def render_track(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    timings: dict[str, float] = {}
+
+    t0 = time.perf_counter()
     LOG.info("Extracting audio features for track '%s'", track.id)
     feature_result = audio_features.compute_features(
         audio_path=track.src,
@@ -58,7 +79,9 @@ def render_track(
         sample_rate=config.audio.sample_rate,
         normalization=config.audio.normalization,
     )
+    timings["features_sec"] = time.perf_counter() - t0
 
+    t1 = time.perf_counter()
     LOG.info(
         "Generating latent trajectory | track=%s preset=%s",
         track.id,
@@ -76,25 +99,94 @@ def render_track(
             track_seed=track.seed,
         ),
     )
+    timings["controller_sec"] = time.perf_counter() - t1
 
     latent_path = output_dir / "latents.npz"
     controller.save_latent_result(latent_result, latent_path)
+
+    postfx_seed = config.controller.wander_seed ^ (track.seed or 0)
+    processor = PostFXProcessor(
+        config=config.postfx,
+        resolution=(config.resolution[0], config.resolution[1]),
+        seed=int(postfx_seed),
+    )
+
+    video_path = output_dir / "video.mp4"
+    preview_dir = output_dir / "previews" if preview else None
+    writer = FFMpegWriter(
+        output_path=video_path,
+        frame_rate=config.frame_rate,
+        resolution=config.resolution,
+        audio_path=track.src,
+        ffmpeg_path=ffmpeg_path,
+        trim_start=track.trim.start,
+        trim_end=track.trim.end,
+        keep_frames=keep_frames,
+        preview_dir=preview_dir,
+    )
+
+    render_start = time.perf_counter()
+    frames_total = latent_result.frame_count
+    batch_size = max(1, config.decoder.batch_size)
+    for start in range(0, frames_total, batch_size):
+        end = min(frames_total, start + batch_size)
+        latents_chunk = latent_result.latents[start:end]
+        decoded = decoder.decode(
+            latents_chunk,
+            batch_size=config.decoder.batch_size,
+            validate=True,
+        )
+        graded = apply_postfx(decoded, processor=processor)
+        writer.write_batch(graded)
+
+    preview_bundle = writer.close()
+    timings["render_sec"] = time.perf_counter() - render_start
+
+    checksum = compute_sha256(video_path)
+
+    track_metadata = {
+        "track_id": track.id,
+        "frames": latent_result.frame_count,
+        "duration_sec": writer.duration,
+        "video": str(video_path),
+        "preview_still": str(preview_bundle.still) if preview_bundle.still else None,
+        "preview_anim": str(preview_bundle.animated) if preview_bundle.animated else None,
+        "feature_cache": str(feature_result.cache_path),
+        "feature_checksum": feature_result.checksum,
+        "latents_path": str(latent_path),
+        "decoder_provider": decoder.current_provider,
+        "decoder_precision": decoder.precision,
+        "timings": timings,
+        "checksum_sha256": checksum,
+    }
+    (output_dir / "summary.json").write_text(json.dumps(track_metadata, indent=2))
+
     summary = TrackRenderSummary(
         track_id=track.id,
         output_dir=output_dir,
         latents_path=latent_path,
+        video_path=video_path,
         frames=latent_result.frame_count,
+        duration=writer.duration,
         anchor_set=latent_result.anchor_name,
         feature_cache=feature_result.cache_path,
         feature_checksum=feature_result.checksum,
+        preview_still=preview_bundle.still,
+        preview_anim=preview_bundle.animated,
+        checksum=checksum,
+        decode_provider=decoder.current_provider,
+        decode_precision=decoder.precision,
+        timings=timings,
     )
     LOG.info(
-        "Latent trajectory stored",
+        "Track render completed",
         extra={
             "track_id": track.id,
             "frames": latent_result.frame_count,
             "anchor": latent_result.anchor_name,
             "latents_path": str(latent_path),
+            "video_path": str(video_path),
+            "provider": decoder.current_provider,
         },
     )
     return summary

@@ -127,24 +127,24 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ### Steps
 1. **Decoder Integration**
-   - [ ] Implement `decoder.py` wrapper supporting CUDA and CPU execution providers with configurable batch size.  
-   - [ ] Add retry/fallback logic when GPU memory exhausted (auto-switch to CPU or reduced batch).  
-   - [ ] Validate decoded frames against reference latents (numerical checks).
+   - [x] Implement `decoder.py` wrapper supporting CUDA and CPU execution providers with configurable batch size.  
+   - [x] Add retry/fallback logic when GPU memory exhausted (auto-switch to CPU or reduced batch).  
+   - [x] Validate decoded frames against reference latents (numerical checks).
 
 2. **PostFX Pipeline**
-   - [ ] Implement `postfx.py` for tone curves, vignette, chroma shift, grain, and optional motion trails.  
-   - [ ] Ensure operations are vectorized (numpy/CuPy) and deterministic with seeds.  
-   - [ ] Provide preset-driven parameter sets stored alongside controller presets.
+   - [x] Implement `postfx.py` for tone curves, vignette, chroma shift, grain, and optional motion trails.  
+   - [x] Ensure operations are vectorized (numpy/CuPy) and deterministic with seeds.  
+   - [x] Provide preset-driven parameter sets stored alongside controller presets.
 
 3. **Encoding & Previews**
-   - [ ] Implement `frame_writer.py` streaming raw frames to FFmpeg (pipe) with audio mux.  
-   - [ ] Support optional intermediate image sequence output for debugging (`--keep-frames`).  
-   - [ ] Generate preview PNGs and animated GIF/WebM snippets for each track.
+   - [x] Implement `frame_writer.py` streaming raw frames to FFmpeg (pipe) with audio mux.  
+   - [x] Support optional intermediate image sequence output for debugging (`--keep-frames`).  
+   - [x] Generate preview PNGs and animated GIF/WebM snippets for each track.
 
 4. **Full Track & Album Renders**
-   - [ ] Render at least one full-length track end-to-end (features → MP4) and record timings.  
-   - [ ] Implement album concatenation pipeline (`ffmpeg -f concat`) with metadata copy.  
-   - [ ] Store render logs, timings, and checksums under `/renders/<run-id>/`.
+   - [x] Render at least one full-length track end-to-end (features → MP4) and record timings.  
+   - [x] Implement album concatenation pipeline (`ffmpeg -f concat`) with metadata copy.  
+   - [x] Store render logs, timings, and checksums under `/renders/<run-id>/`.
 
 ### Deliverable
 Per-track MP4 renders plus a concatenated album video with associated metadata, previews, and logs.

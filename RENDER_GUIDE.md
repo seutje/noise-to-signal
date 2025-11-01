@@ -5,9 +5,8 @@ The renderer translates offline audio tracks into latent trajectories for the β
 
 1. **Feature Extraction** – Deterministic metrics from source audio (`renderer/audio_features.py`).
 2. **Latent Control** – Anchor blending, smoothing, and wander layers (`renderer/controller.py`).
-3. **Rendering Orchestration** – CLI entry points that manage presets, run metadata, and downstream decoding (`renderer/render_album.py`, `renderer/render_track.py`).
-
-Future phases will attach ONNX decoding, post-processing, and video encoding.
+3. **Decoding & PostFX** – ONNX Runtime decoder batches latent tensors and applies tone mapping / vignette / grain (`renderer/decoder.py`, `renderer/postfx.py`).
+4. **Encoding & Packaging** – `renderer/frame_writer.py` streams frames to FFmpeg, emits previews, and `renderer/render_album.py` orchestrates album concatenation.
 
 ## 2. Configuration Files
 
@@ -66,29 +65,40 @@ Invoking `python -m renderer.render_album` creates `<output_root>/run.json` with
       "id": "opening",
       "anchor_set": "drift",
       "frames": 7215,
+      "duration_seconds": 120.25,
       "latents": "renders/album-demo/opening/latents.npz",
+      "video": "renders/album-demo/opening/video.mp4",
+      "preview_still": "renders/album-demo/opening/previews/preview.png",
       "features_cache": "cache/features/opening.npz",
-      "feature_checksum": "..."
+      "feature_checksum": "...",
+      "video_checksum": "...",
+      "decoder_provider": "CUDAExecutionProvider",
+      "decoder_precision": "int8",
+      "timings": {
+        "features_sec": 8.23,
+        "controller_sec": 2.11,
+        "render_sec": 64.5
+      }
     }
   ]
 }
 ```
 
-This metadata acts as the provenance record for downstream phases (decoder, postFX, encoding).
+This metadata now captures decoder/provider selections, timing metrics, and checksums so renders remain reproducible across reruns and audits.
 
 ## 6. CLI Usage
 
 ```
 python -m renderer.render_album --config render.yaml --dry-run
 python -m renderer.render_album --config render.yaml --preset pulse --set controller.wander_seed=99
-python -m renderer.render_album --config render.yaml --track opening --verbose
+python -m renderer.render_album --config render.yaml --track opening --verbose --keep-frames
+python -m renderer.render_album --config render.yaml --ffmpeg /usr/local/bin/ffmpeg --no-previews
 ```
 
-Dry runs emit the planned actions without touching caches. Real runs populate feature caches, latent trajectories, and `run.json`.
+Dry runs emit the planned actions without touching caches. Real runs populate feature caches, latent trajectories, per-track MP4s, preview assets, and `run.json`. Use `--keep-frames` to retain intermediate PNG sequences and `--no-previews` to skip GIF/PNG generation for batch jobs.
 
-## 7. Next Steps (Phases 4-6)
+## 7. Next Steps (Phases 5-6)
 
-- Integrate ONNX decoder and FFmpeg frame writer.
-- Expand tests to cover decoder batching and render orchestration.
-- Update documentation (`README.md`, `PLAN.md`) after human verification of each phase.
-
+- Expand tests to cover decoder batching, postFX determinism, and render orchestration.
+- Wire CI for linting, pytest coverage, and artifact upload (`PLAN.md` §5).
+- Finalise packaging/licensing documentation ahead of release (`PLAN.md` §6).
