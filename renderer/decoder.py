@@ -208,14 +208,16 @@ class DecoderSession:
                 )
                 continue
 
+            actual_provider = session.get_providers()[0] if session.get_providers() else info.provider
             self._session = session
-            self._current_provider = info.provider
+            self._current_provider = actual_provider
             self._precision = info.precision
             self._input_name = input_name
             self._output_name = output_name
             _log_event(
                 "decoder.session_ready",
                 provider=info.provider,
+                actual_provider=actual_provider,
                 precision=info.precision,
                 model=str(info.model_path),
             )

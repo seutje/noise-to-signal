@@ -7,3 +7,4 @@
 - 2025-11-02: Upgraded album CLI (`renderer/render_album.py`) with decoder bootstrap, FFmpeg path override, preview toggle, frame retention flag, and album-level concatenation + enriched `run.json` metadata.
 - 2025-11-02: Updated documentation (`PLAN.md`, `RENDER_GUIDE.md`) and dependency manifest (`renderer/requirements.txt` → +`imageio`) to reflect Phase 4 capabilities; recorded Phase 4 completion logs.
 - 2025-11-02: Ran regression tests via `venv/bin/pytest` (controller suite) to ensure existing deterministic behaviour remains intact.
+- 2025-11-02: Hardened decoder session reporting and FFmpeg writer shutdown (handled batch-1 ONNX exports, actual provider logging, and flush-on-closed stdin guard) after verifying the first rendered MP4.

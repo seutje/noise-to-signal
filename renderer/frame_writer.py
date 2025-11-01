@@ -195,8 +195,11 @@ class FFMpegWriter:
     # ------------------------------------------------------------------ #
 
     def close(self) -> PreviewBundle:
-        if self._process.stdin:
-            self._process.stdin.flush()
+        if self._process.stdin and not self._process.stdin.closed:
+            try:
+                self._process.stdin.flush()
+            except ValueError:
+                pass
             self._process.stdin.close()
         stdout, stderr = self._process.communicate()
         if self._process.returncode != 0:
