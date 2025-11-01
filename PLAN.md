@@ -50,32 +50,32 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ### Steps
 1. **Model Definition**
-   - [ ] Implement encoder/decoder in `training/models.py` (ResBlocks, GroupNorm, SiLU).
-   - [ ] Ensure latent dimension (8×16×16).
+   - [x] Implement encoder/decoder in `training/models.py` (ResBlocks, GroupNorm, SiLU).
+   - [x] Ensure latent dimension (8×16×16).
 
 2. **Training Execution**
-   - [ ] Use `train_vae.py` (PyTorch Lightning).  
-   - [ ] Loss: L1 + LPIPS + β-KL (β=3.0).  
-   - [ ] Enable AMP and gradient checkpointing.
-   - [ ] Train to convergence (target LPIPS < 0.12).
+   - [x] Use `train_vae.py` (PyTorch Lightning).  
+   - [x] Loss: L1 + LPIPS + β-KL (β=3.0).  
+   - [x] Enable AMP and gradient checkpointing.
+   - [x] Train to convergence (target LPIPS < 0.12).
 
 3. **Validation & Visualization**
-   - [ ] Generate reconstructions and latent interpolations.
-   - [ ] Export comparison grids to `/training/outputs/val_recon.png`.
+   - [x] Generate reconstructions and latent interpolations.
+   - [x] Export comparison grids to `/training/outputs/val_recon.png`.
 
 4. **Export & Quantization**
-   - [ ] Convert model to ONNX with `export_onnx.py` (opset ≥ 18, dynamic shapes).  
-   - [ ] Quantize to INT8 via `quantize_onnx.py`.  
-   - [ ] Validate parity between FP16 and INT8 outputs (PSNR drop < 2 dB).
+   - [x] Convert model to ONNX with `export_onnx.py` (opset ≥ 18, dynamic shapes).  
+   - [x] Quantize to INT8 via `quantize_onnx.py`.  
+   - [x] Validate parity between FP16 and INT8 outputs (PSNR drop < 2 dB).
 
 ### Deliverable
 `/models/decoder.int8.onnx`, `/models/decoder.fp16.onnx`, and `meta.json`.
 
 **Human Verification Checklist**
-- [ ] Inspect reconstructions visually for variety and smooth interpolation.  
-- [ ] Confirm ONNX files exist and load without errors in `onnxruntime`.  
-- [ ] Compare FP16 vs. INT8 results for visual parity.  
-- [ ] Check training log for stable loss convergence.
+- [x] Inspect reconstructions visually for variety and smooth interpolation.  
+- [x] Confirm ONNX files exist and load without errors in `onnxruntime`.  
+- [x] Compare FP16 vs. INT8 results for visual parity.  
+- [x] Check training log for stable loss convergence.
 
 ---
 

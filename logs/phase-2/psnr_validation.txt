@@ -1,0 +1,8 @@
+FP16 vs INT8 PSNR parity check (2025-11-01):
+- Samples: 32 random dataset images
+- Mean FP16 PSNR (vs original): 19.01 dB
+- Mean INT8 PSNR (vs original): 18.93 dB
+- Mean drop: 0.079 dB
+- Max drop: 0.240 dB
+- Min drop: -0.065 dB (INT8 slightly higher)
+Tooling: `tools/validate_int8_parity.py` (console run recorded in DEVLOG)

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "checkpoint": "training/outputs/checkpoints/vae-epoch=077-val_lpips=0.0000.ckpt",
+  "image_resolution": 256,
+  "latent_shape": [
+    8,
+    16,
+    16
+  ],
+  "fp16_decoder": "models/decoder.fp16.onnx",
+  "dynamic_axes": false,
+  "opset": 18,
+  "beta": 3.0,
+  "kl_warmup_epochs": 8.0,
+  "ema_exported": true,
+  "normalization": {
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ]
+  },
+  "int8_decoder": "models/decoder.int8.onnx",
+  "quantization": {
+    "method": "static_qdq",
+    "per_channel": false,
+    "psnr_db": 33.0700586588518,
+    "samples": 32
+  }
+}

@@ -1,0 +1,11 @@
+beta: 3.0
+disable_ema: false
+ema_decay: 0.999
+image_resolution: 256
+kl_warmup_epochs: 8.0
+latent_channels: 8
+lr: 0.0003
+max_epochs: 80
+num_samples: 8
+output_dir: training/outputs
+weight_decay: 0.0001
