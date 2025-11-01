@@ -35,12 +35,51 @@ metadata:
   version: 0.1.0
 
 tracks:
-  - id: opening
-    src: album/01-opening.wav
-    preset: drift
+  - id: null-hypothesis
+    src: "album/01 - Null Hypothesis.mp3"
+    preset: fracture
+    anchors: baseline
+    seed: 101
     trim:
       start: 0.0
       end: null
-  - id: interference
-    src: album/02-interference.wav
-    preset: pulse
+  - id: seed-42
+    src: "album/02 - Seed 42.mp3"
+    preset: surge
+    anchors: pulse
+    seed: 142
+  - id: static-saint
+    src: "album/03 - Static Saint.mp3"
+    preset: lumen
+    anchors: baseline
+    seed: 203
+  - id: delta-form
+    src: "album/04 - ΔForm.mp3"
+    preset: fracture
+    anchors: baseline
+    seed: 204
+  - id: standard-deviation
+    src: "album/05 - Standard Deviation.mp3"
+    preset: surge
+    anchors: pulse
+    seed: 305
+  - id: checksum-failed
+    src: "album/06 - Checksum Failed.mp3"
+    preset: fracture
+    anchors: baseline
+    seed: 306
+  - id: fragments-of-reality
+    src: "album/07 - Fragments of Reality.mp3"
+    preset: nocturne
+    anchors: drift
+    seed: 407
+  - id: magic-number
+    src: "album/08 - Magic Number.mp3"
+    preset: lumen
+    anchors: baseline
+    seed: 408
+  - id: ghost-signal
+    src: "album/09 - Ghost Signal.mp3"
+    preset: nocturne
+    anchors: drift
+    seed: 509

@@ -1,0 +1,14 @@
+controller:
+  preset: nocturne
+  smoothing_alpha: 0.975
+  anchor_set: drift
+  tempo_sync:
+    enabled: false
+postfx:
+  tone_curve: pastel
+  grain_intensity: 0.06
+  chroma_shift: 0.002
+  vignette_strength: 0.3
+  motion_trails: true
+metadata:
+  description: "Slow-burning cinematic preset with deep vignette and long motion trails."

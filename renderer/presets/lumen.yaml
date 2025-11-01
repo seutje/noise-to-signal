@@ -1,0 +1,15 @@
+controller:
+  preset: lumen
+  smoothing_alpha: 0.9
+  anchor_set: baseline
+  tempo_sync:
+    enabled: true
+    subdivision: 0.5
+postfx:
+  tone_curve: pastel
+  grain_intensity: 0.12
+  chroma_shift: 0.004
+  vignette_strength: 0.12
+  motion_trails: false
+metadata:
+  description: "Airy preset for melodic material with soft highlights and gentle vignette."

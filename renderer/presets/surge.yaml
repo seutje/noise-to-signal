@@ -1,0 +1,15 @@
+controller:
+  preset: surge
+  smoothing_alpha: 0.83
+  anchor_set: pulse
+  tempo_sync:
+    enabled: true
+    subdivision: 0.125
+postfx:
+  tone_curve: punch
+  grain_intensity: 0.22
+  chroma_shift: 0.008
+  vignette_strength: 0.15
+  motion_trails: false
+metadata:
+  description: "High-tempo preset tuned for dense percussion and rhythmic leads."

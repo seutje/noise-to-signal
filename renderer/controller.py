@@ -143,11 +143,15 @@ class LatentController:
 
     def _resolve_wander_amount(self) -> float:
         preset = (self.track.preset or self.config.controller.preset or "default").lower()
-        if preset == "pulse":
-            return 0.18
-        if preset == "drift":
-            return 0.28
-        return 0.22
+        wander_map = {
+            "pulse": 0.18,
+            "surge": 0.18,
+            "drift": 0.28,
+            "nocturne": 0.3,
+            "fracture": 0.24,
+            "lumen": 0.2,
+        }
+        return wander_map.get(preset, 0.22)
 
     def _build_projection(self, feature_dim: int) -> np.ndarray:
         if self._projection is not None and self._projection.shape[1] == feature_dim:

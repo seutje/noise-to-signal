@@ -1,0 +1,15 @@
+controller:
+  preset: fracture
+  smoothing_alpha: 0.88
+  anchor_set: baseline
+  tempo_sync:
+    enabled: true
+    subdivision: 0.33
+postfx:
+  tone_curve: filmlog
+  grain_intensity: 0.24
+  chroma_shift: -0.007
+  vignette_strength: 0.22
+  motion_trails: true
+metadata:
+  description: "Glitch-driven preset with aggressive grain, chroma jitter, and tight sync."
