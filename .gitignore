@@ -38,3 +38,5 @@ yarn-error.log*
 /renders/
 
 */__pycache__/*
+
+/training/outputs/checkpoints/*.ckpt
