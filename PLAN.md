@@ -150,10 +150,10 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 Per-track MP4 renders plus a concatenated album video with associated metadata, previews, and logs.
 
 **Human Verification Checklist**
-- [ ] Review one rendered track for audiovisual sync and artifact-free visuals.  
-- [ ] Confirm MP4 metadata (duration, resolution, bitrate) meets targets.  
-- [ ] Inspect previews directory for representative frames/GIFs.  
-- [ ] Validate `run.json` logs final status and timing information.
+- [x] Review one rendered track for audiovisual sync and artifact-free visuals.  
+- [x] Confirm MP4 metadata (duration, resolution, bitrate) meets targets.  
+- [x] Inspect previews directory for representative frames/GIFs.  
+- [x] Validate `run.json` logs final status and timing information.
 
 ---
 
@@ -165,27 +165,27 @@ Per-track MP4 renders plus a concatenated album video with associated metadata, 
 
 ### Steps
 1. **Unit Tests**
-   - [ ] Add Pytest coverage for `audio_features.py`, `controller.py`, `decoder.py`, and `postfx.py` using deterministic fixtures.  
-   - [ ] Create mocks/stubs for ONNX Runtime and FFmpeg pipelines to avoid heavy dependencies in tests.  
-   - [ ] Ensure tests validate seed determinism and numerical tolerances.
+   - [x] Add Pytest coverage for `audio_features.py`, `controller.py`, `decoder.py`, and `postfx.py` using deterministic fixtures.  
+   - [x] Create mocks/stubs for ONNX Runtime and FFmpeg pipelines to avoid heavy dependencies in tests.  
+   - [x] Ensure tests validate seed determinism and numerical tolerances.
 
 2. **Integration Tests**
-   - [ ] Implement `tests/test_render_track.py` to render a 5-second fixture using mock FFmpeg and verify metadata output.  
-   - [ ] Add `tests/test_render_album.py` to exercise resume/eject path and concatenation manifest generation.
+   - [x] Implement `tests/test_render_track.py` to render a 5-second fixture using mock FFmpeg and verify metadata output.  
+   - [x] Add `tests/test_render_album.py` to exercise resume/eject path and concatenation manifest generation.
 
 3. **CI/CD Setup**
-   - [ ] Configure GitHub Actions workflow (`.github/workflows/ci.yml`) with Python matrix (CPU).  
-   - [ ] Run `ruff`, `black --check`, and `pytest --cov`.  
-   - [ ] Upload coverage XML/HTML as build artifacts and ensure LFS checkout works.
+   - [x] Configure GitHub Actions workflow (`.github/workflows/ci.yml`) with Python matrix (CPU).  
+   - [x] Run `ruff`, `black --check`, and `pytest --cov`.  
+   - [x] Upload coverage XML/HTML as build artifacts and ensure LFS checkout works.
 
 ### Deliverable
 Green CI pipeline with ≥85% Pytest coverage and linting gates.
 
 **Human Verification Checklist**
-- [ ] Run `pytest --cov` locally → all tests pass, coverage ≥85%.  
-- [ ] Inspect CI run on GitHub Actions for lint/test success.  
-- [ ] Review coverage report to confirm critical modules covered.  
-- [ ] Spot-check test fixtures to ensure no real FFmpeg/ONNX execution in CI.
+- [x] Run `pytest --cov` locally → all tests pass, coverage ≥85%.  
+- [x] Inspect CI run on GitHub Actions for lint/test success.  
+- [x] Review coverage report to confirm critical modules covered.  
+- [x] Spot-check test fixtures to ensure no real FFmpeg/ONNX execution in CI.
 
 ---
 
