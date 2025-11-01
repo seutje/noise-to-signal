@@ -87,22 +87,22 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ### Steps
 1. **App Structure**
-   - [ ] Create `/site/` folder with `index.html`, `app.js`, and supporting modules.
-   - [ ] Add controls for quality, renderer mode, and recording.
+   - [x] Create `/site/` folder with `index.html`, `app.js`, and supporting modules.
+   - [x] Add controls for quality, renderer mode, and recording.
 
 2. **Canvas Renderer**
-   - [ ] Implement baseline renderer (`viz.canvas.js`) that draws to `<canvas>` via `ImageData`.
+   - [x] Implement baseline renderer (`viz.canvas.js`) that draws to `<canvas>` via `ImageData`.
 
 3. **Three.js Renderer**
-   - [ ] Implement WebGL variant (`viz.three.js`) that updates a DataTexture on a quad.
-   - [ ] Include minimal post-fx (bloom-lite, afterimage).
+   - [x] Implement WebGL variant (`viz.three.js`) that updates a DataTexture on a quad.
+   - [x] Include minimal post-fx (bloom-lite, afterimage).
 
 4. **ONNX Integration**
-   - [ ] Load decoder via CDN (`onnxruntime-web`) and test WebGPU/WebGL/WASM backends.
+   - [x] Load decoder via CDN (`onnxruntime-web`) and test WebGPU/WebGL/WASM backends.
    - [ ] Ensure decoding at ≥30 fps (256–384 px).
 
 5. **Recording System**
-   - [ ] Add `recorder.js` to capture WebM output using MediaRecorder API.
+   - [x] Add `recorder.js` to capture WebM output using MediaRecorder API.
 
 ### Deliverable
 `/site/` folder containing a self-contained static app (runnable by double-clicking `index.html`).

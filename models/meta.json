@@ -8,6 +8,7 @@
     16
   ],
   "fp16_decoder": "models/decoder.fp16.onnx",
+  "fp32_decoder": "models/decoder.fp32.onnx",
   "dynamic_axes": false,
   "opset": 18,
   "beta": 3.0,
