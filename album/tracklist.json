@@ -1,0 +1,83 @@
+[
+  {
+    "id": "null-hypothesis",
+    "src": "01 - Null Hypothesis.mp3",
+    "title": "Null Hypothesis",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "seed-42",
+    "src": "02 - Seed 42.mp3",
+    "title": "Seed 42",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "static-saint",
+    "src": "03 - Static Saint.mp3",
+    "title": "Static Saint",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "delta-form",
+    "src": "04 - ΔForm.mp3",
+    "title": "ΔForm",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "standard-deviation",
+    "src": "05 - Standard Deviation.mp3",
+    "title": "Standard Deviation",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "checksum-failed",
+    "src": "06 - Checksum Failed.mp3",
+    "title": "Checksum Failed",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "fragments-of-reality",
+    "src": "07 - Fragments of Reality.mp3",
+    "title": "Fragments of Reality",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "magic-number",
+    "src": "08 - Magic Number.mp3",
+    "title": "Magic Number",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  },
+  {
+    "id": "ghost-signal",
+    "src": "09 - Ghost Signal.mp3",
+    "title": "Ghost Signal",
+    "artist": "ART.ficial.Ignorance",
+    "bpm": null,
+    "key": null,
+    "markers": []
+  }
+]

@@ -1,0 +1,46 @@
+# Template render configuration for noise-to-signal.
+#
+# Copy this file to the project root (render.yaml) and customise as needed.
+
+output_root: renders/demo-run
+frame_rate: 60
+resolution: [1920, 1088]  # ensure divisible by 16
+
+audio:
+  sample_rate: 48000
+  normalization: -14.0
+
+controller:
+  preset: default
+  smoothing_alpha: 0.92
+  wander_seed: 42
+  tempo_sync:
+    enabled: true
+    subdivision: 0.5
+  anchor_set: baseline
+
+decoder:
+  batch_size: 32
+  execution_provider: cuda
+
+postfx:
+  tone_curve: filmlog
+  grain_intensity: 0.12
+  chroma_shift: 0.002
+  vignette_strength: 0.2
+  motion_trails: false
+
+metadata:
+  album: noise-to-signal-demo
+  version: 0.1.0
+
+tracks:
+  - id: opening
+    src: album/01-opening.wav
+    preset: drift
+    trim:
+      start: 0.0
+      end: null
+  - id: interference
+    src: album/02-interference.wav
+    preset: pulse

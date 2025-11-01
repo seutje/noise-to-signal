@@ -1,0 +1,14 @@
+controller:
+  preset: pulse
+  smoothing_alpha: 0.85
+  anchor_set: pulse
+  tempo_sync:
+    enabled: true
+    subdivision: 0.25
+postfx:
+  tone_curve: punch
+  grain_intensity: 0.18
+  chroma_shift: 0.006
+  vignette_strength: 0.18
+metadata:
+  description: "High-energy preset for percussive tracks."

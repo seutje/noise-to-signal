@@ -1,0 +1,67 @@
+# Default render configuration for the noise-to-signal renderer.
+#
+# Adjust paths and presets before running `python -m renderer.render_album`.
+
+output_root: renders/album-demo
+frame_rate: 60
+resolution: [1920, 1088]  # height rounded up to nearest multiple of 16
+
+audio:
+  sample_rate: 48000
+  normalization: -14.0
+
+controller:
+  preset: default
+  smoothing_alpha: 0.92
+  wander_seed: 42
+  tempo_sync:
+    enabled: true
+    subdivision: 0.5
+  anchor_set: baseline
+
+decoder:
+  batch_size: 32
+  execution_provider: cuda
+
+postfx:
+  tone_curve: filmlog
+  grain_intensity: 0.12
+  chroma_shift: 0.002
+  vignette_strength: 0.2
+  motion_trails: false
+
+metadata:
+  album: placeholder
+  version: 0.1.0
+
+tracks:
+  - id: null-hypothesis
+    src: album/01 - Null Hypothesis.mp3
+    preset: default
+    trim:
+      start: 0.0
+      end: null
+  - id: seed-42
+    src: album/02 - Seed 42.mp3
+    preset: pulse
+  - id: static-saint
+    src: album/03 - Static Saint.mp3
+    preset: drift
+  - id: delta-form
+    src: album/04 - ΔForm.mp3
+    preset: pulse
+  - id: standard-deviation
+    src: album/05 - Standard Deviation.mp3
+    preset: default
+  - id: checksum-failed
+    src: album/06 - Checksum Failed.mp3
+    preset: pulse
+  - id: fragments-of-reality
+    src: album/07 - Fragments of Reality.mp3
+    preset: drift
+  - id: magic-number
+    src: album/08 - Magic Number.mp3
+    preset: pulse
+  - id: ghost-signal
+    src: album/09 - Ghost Signal.mp3
+    preset: drift

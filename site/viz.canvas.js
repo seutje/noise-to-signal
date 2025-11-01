@@ -28,8 +28,6 @@ export async function createCanvasViz({ sessionInfo, meta, canvas = document.get
   let queued = null;
   let disposed = false;
 
-  const latentBuffer = new Float32Array(latentSize);
-
   function setSize(nextSize) {
     const px = clamp(Number.parseInt(nextSize, 10) || baseResolution, 128, 1024);
     canvas.style.width = `${px}px`;
@@ -39,9 +37,8 @@ export async function createCanvasViz({ sessionInfo, meta, canvas = document.get
   setSize(size);
 
   async function decode(latentArray) {
-    latentBuffer.set(latentArray);
     const feeds = {
-      [inputName]: new window.ort.Tensor("float32", latentBuffer, [1, ...latentShape]),
+      [inputName]: new window.ort.Tensor("float32", latentArray, [1, ...latentShape]),
     };
     const outputMap = await session.run(feeds);
     const tensor = outputMap[outputName];

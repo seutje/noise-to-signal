@@ -84,13 +84,46 @@ function getIOName(session, kind, fallback) {
 
 export async function createDecoderSession(meta, options = {}) {
   const ort = await ensureOrtLoaded();
+  const adapter = options.adapter || null;
+  const adapterSupportsInfo = !!(adapter && typeof adapter.requestAdapterInfo === "function");
+  if (adapterSupportsInfo) {
+    ort.env.webgpu = ort.env.webgpu || {};
+    ort.env.webgpu.adapter = adapter;
+  } else if (adapter) {
+    console.warn("[viz] WebGPU adapter returned without requestAdapterInfo(); skipping ORT WebGPU path.");
+  }
+  const supportsSab = typeof self !== "undefined" && self.crossOriginIsolated === true;
+  const hardwareThreads = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
+  const wasmThreads = Math.max(1, Math.min(hardwareThreads, 8));
+  if (ort.env && ort.env.wasm) {
+    ort.env.wasm.simd = true;
+    ort.env.wasm.proxy = supportsSab;
+    ort.env.wasm.numThreads = supportsSab ? wasmThreads : 1;
+  }
+  const webgpuSupported = adapterSupportsInfo;
+  const webglSupported = (() => {
+    if (typeof document === "undefined") return false;
+    try {
+      const canvas = document.createElement("canvas");
+      return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+    } catch (error) {
+      console.warn("[viz] WebGL context check failed", error);
+      return false;
+    }
+  })();
   const preferInt8 = options.preferInt8 !== false;
   const providerCombosInput = options.executionProviders;
   const providerCombos = Array.isArray(providerCombosInput) && providerCombosInput.length ?
     (Array.isArray(providerCombosInput[0]) ?
       providerCombosInput.map((combo) => combo.slice()) :
       [providerCombosInput.slice()]) :
-    [["webgpu"], ["wasm"]];
+    (() => {
+      const combos = [];
+      if (webgpuSupported) combos.push(["webgpu"]);
+      if (webglSupported) combos.push(["webgl"]);
+      combos.push(["wasm"]);
+      return combos;
+    })();
 
   const candidateModels = [];
   if (preferInt8 && meta.int8_decoder) {
@@ -122,6 +155,10 @@ export async function createDecoderSession(meta, options = {}) {
           inputName: getIOName(session, "input", "latent"),
           outputName: getIOName(session, "output", "image"),
           providers,
+          wasmThreads: supportsSab ? wasmThreads : 1,
+          webgpuSupported,
+          webglSupported,
+          adapterSet: !!adapter,
         };
         decoderCache.set(cacheKey, info);
         return info;

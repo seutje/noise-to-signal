@@ -36,8 +36,6 @@ export async function createThreeViz({
   const pixelCount = baseResolution * baseResolution;
   const rgbData = new Uint8Array(pixelCount * 3);
   const smoothedData = new Float32Array(pixelCount * 3);
-  const latentBuffer = new Float32Array(latentSize);
-
   const texture = new THREE.DataTexture(rgbData, baseResolution, baseResolution, THREE.RGBFormat);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearFilter;
@@ -102,9 +100,8 @@ export async function createThreeViz({
   root.hidden = false;
 
   async function decode(latentArray) {
-    latentBuffer.set(latentArray);
     const feeds = {
-      [inputName]: new window.ort.Tensor("float32", latentBuffer, [1, ...latentShape]),
+      [inputName]: new window.ort.Tensor("float32", latentArray, [1, ...latentShape]),
     };
     const outputMap = await session.run(feeds);
     const tensor = outputMap[outputName];

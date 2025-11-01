@@ -7,3 +7,8 @@
 - 2025-11-01: Created Phase 3 logging placeholders (`logs/phase-3/*`) and updated DEVLOG with execution summary.
 - 2025-11-01: Generated float32 decoder fallback (`models/decoder.fp32.onnx` + `meta.json`) and updated loader to prioritize INT8→FP32→FP16 for broader browser support.
 - 2025-11-01: Narrowed runtime provider selection to WebGPU→WASM (skipping WebGL) to avoid InstanceNormalization kernel shape constraints in `onnxruntime-web` (`site/utils.js`).
+- 2025-11-01: Added WASM tuning, decode throttling, and secure-context guidance to highlight performance expectations (`site/utils.js`, `site/app.js`).
+- 2025-11-01: Patched viz renderers to avoid reusing detached WASM buffers by passing per-frame Float32Array copies directly into ORT tensors (`site/viz.canvas.js`, `site/viz.three.js`).
+- 2025-11-01: Vendored `onnxruntime-web` + `three` into `/site/vendor`, updated `index.html` to load local copies and expose THREE globally for legacy scripts.
+- 2025-11-01: Added COOP/COEP meta fallbacks and WebGPU adapter diagnostics (manual request + skip if unavailable) to improve backend selection messaging (`site/index.html`, `site/app.js`, `site/utils.js`).
+- 2025-11-01: Enabled WebGL provider fallback when WebGPU is unavailable and guarded WebGPU adapter usage against missing `requestAdapterInfo` support (`site/utils.js`).

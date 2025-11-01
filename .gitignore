@@ -32,3 +32,9 @@ yarn-error.log*
 
 # Training data
 /data/sd15_abstract/*
+
+# Renderer caches and outputs
+/cache/
+/renders/
+
+*/__pycache__/*

@@ -1,0 +1,12 @@
+controller:
+  preset: default
+  smoothing_alpha: 0.92
+  anchor_set: baseline
+  tempo_sync:
+    enabled: true
+    subdivision: 0.5
+postfx:
+  tone_curve: filmlog
+  grain_intensity: 0.12
+  chroma_shift: 0.003
+  vignette_strength: 0.25

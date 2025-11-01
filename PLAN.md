@@ -1,7 +1,7 @@
 # noise-to-signal — Multi-Phase Development Plan (for AI Agents)
 
 **Purpose:**  
-Structured roadmap for AI agents (and human supervisors) to execute and verify the full development of the *noise-to-signal* project — a static, album-based latent-space visualizer using a VAE decoder and real-time audio features.
+Structured roadmap for AI agents (and human supervisors) to execute and verify the full development of the *noise-to-signal* project — a Python-based offline renderer that prerenders album visuals using a VAE decoder driven by audio analysis.
 
 ---
 
@@ -46,7 +46,7 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ### Objectives
 - Train and validate a β-VAE on the generated dataset.
-- Export ONNX model for browser inference.
+- Export ONNX model for offline inference.
 
 ### Steps
 1. **Model Definition**
@@ -79,103 +79,113 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ---
 
-## Phase 3 — Web Visualization (Canvas + Three.js)
+## Phase 3 — Renderer Pipeline Foundations
 
 ### Objectives
-- Build static frontend that loads ONNX decoder, computes audio features, and visualizes results.
-- Integrate Three.js (CDN) for optional WebGL rendering.
+- Establish Python renderer package structure and CLI entry points.
+- Implement deterministic audio feature extraction with caching.
+- Build latent controller that maps features to VAE trajectories.
 
 ### Steps
-1. **App Structure**
-   - [x] Create `/site/` folder with `index.html`, `app.js`, and supporting modules.
-   - [x] Add controls for quality, renderer mode, and recording.
+1. **Renderer Scaffolding**
+   - [x] Create `/renderer/` package with `render_album.py`, `render_track.py`, and `config_schema.py`.  
+   - [x] Define `render.yaml` template plus preset overrides under `/renderer/presets/`.  
+   - [x] Implement CLI (`python -m renderer.render_album --help`) with argument parsing.
 
-2. **Canvas Renderer**
-   - [x] Implement baseline renderer (`viz.canvas.js`) that draws to `<canvas>` via `ImageData`.
+2. **Audio Feature Extraction**
+   - [x] Implement `audio_features.py` using `librosa`/`torchaudio` to compute RMS, centroid, flatness, MFCC-lite, onset strength.  
+   - [x] Add caching to `/cache/features/<track>.npz` and checksum validation vs. source audio.  
+   - [x] Document feature schema in `RENDER_GUIDE.md`.
 
-3. **Three.js Renderer**
-   - [x] Implement WebGL variant (`viz.three.js`) that updates a DataTexture on a quad.
-   - [x] Include minimal post-fx (bloom-lite, afterimage).
+3. **Latent Controller**
+   - [x] Implement `controller.py` with anchor blending, EMA smoothing, wander noise, and tempo sync support.  
+   - [x] Validate controller determinism under fixed seeds (unit tests).  
+   - [x] Expose preset definitions referencing anchors stored in `models/meta.json`.
 
-4. **ONNX Integration**
-   - [x] Load decoder via CDN (`onnxruntime-web`) and test WebGPU/WebGL/WASM backends.
-   - [ ] Ensure decoding at ≥30 fps (256–384 px).
-
-5. **Recording System**
-   - [x] Add `recorder.js` to capture WebM output using MediaRecorder API.
+4. **Configuration & Logging**
+   - [x] Add structured logging (JSON or text) for feature extraction and controller stages.  
+   - [x] Persist run metadata seeds/config to `/renders/<run-id>/run.json`.  
+   - [x] Update `DEVLOG.md` with foundation progress.
 
 ### Deliverable
-`/site/` folder containing a self-contained static app (runnable by double-clicking `index.html`).
+`/renderer` package capable of computing cached features and generating latent trajectories from configuration files.
 
 **Human Verification Checklist**
-- [ ] Open `index.html` locally → confirm visuals appear and move with audio.  
-- [ ] Switch between Canvas and Three.js renderers.  
-- [ ] Confirm controls (play/pause, record, quality, renderer) all work.  
-- [ ] Record and play back a short WebM clip successfully.
+- [x] Run `python renderer/render_album.py --config render.yaml --dry-run` → CLI lists planned actions without errors.  
+- [x] Inspect generated feature cache for one track (shape, dtype, timestamps).  
+- [x] Confirm controller unit tests demonstrate deterministic outputs.  
+- [x] Review `run.json` metadata for completeness (seeds, presets, timestamps).
 
 ---
 
-## Phase 4 — Album Playback Integration
+## Phase 4 — Rendering & Post-Processing
 
 ### Objectives
-- Integrate fixed MP3 playlist (`tracklist.json`).
-- Visualize album playback without microphone input.
+- Decode latent trajectories into frames via ONNX Runtime.
+- Pipe frames through post-processing and encode with FFmpeg.
+- Generate deterministic per-track renders and stitched album video.
 
 ### Steps
-1. **Playlist Setup**
-   - [ ] Add `/album/` directory with MP3 files (LFS).  
-   - [ ] Create `tracklist.json` with title, src, artist, art, bpm.
+1. **Decoder Integration**
+   - [ ] Implement `decoder.py` wrapper supporting CUDA and CPU execution providers with configurable batch size.  
+   - [ ] Add retry/fallback logic when GPU memory exhausted (auto-switch to CPU or reduced batch).  
+   - [ ] Validate decoded frames against reference latents (numerical checks).
 
-2. **Playback UI**
-   - [ ] Implement play/pause/prev/next buttons, seek slider, time display.  
-   - [ ] Use `<audio>` element bound to WebAudio `AnalyserNode`.
+2. **PostFX Pipeline**
+   - [ ] Implement `postfx.py` for tone curves, vignette, chroma shift, grain, and optional motion trails.  
+   - [ ] Ensure operations are vectorized (numpy/CuPy) and deterministic with seeds.  
+   - [ ] Provide preset-driven parameter sets stored alongside controller presets.
 
-3. **Feature Mapping**
-   - [ ] Extract RMS, spectral centroid, flatness, and MFCC-lite from audio buffer.  
-   - [ ] Smooth features via EMA (α=0.8–0.95).
+3. **Encoding & Previews**
+   - [ ] Implement `frame_writer.py` streaming raw frames to FFmpeg (pipe) with audio mux.  
+   - [ ] Support optional intermediate image sequence output for debugging (`--keep-frames`).  
+   - [ ] Generate preview PNGs and animated GIF/WebM snippets for each track.
 
-4. **Latent Controller**
-   - [ ] Map features → latent deltas using small JS MLP or linear transform.  
-   - [ ] Enable latent “wander” modulation by loudness.
+4. **Full Track & Album Renders**
+   - [ ] Render at least one full-length track end-to-end (features → MP4) and record timings.  
+   - [ ] Implement album concatenation pipeline (`ffmpeg -f concat`) with metadata copy.  
+   - [ ] Store render logs, timings, and checksums under `/renders/<run-id>/`.
 
 ### Deliverable
-Album playback with synchronized visual response.
+Per-track MP4 renders plus a concatenated album video with associated metadata, previews, and logs.
 
 **Human Verification Checklist**
-- [ ] Open app → verify album loads, first track auto-plays.  
-- [ ] Switch tracks; visuals change accordingly.  
-- [ ] Observe consistent frame rate across songs.  
-- [ ] Playback position resumes on refresh (localStorage check).
+- [ ] Review one rendered track for audiovisual sync and artifact-free visuals.  
+- [ ] Confirm MP4 metadata (duration, resolution, bitrate) meets targets.  
+- [ ] Inspect previews directory for representative frames/GIFs.  
+- [ ] Validate `run.json` logs final status and timing information.
 
 ---
 
 ## Phase 5 — Testing & Quality Assurance
 
 ### Objectives
-- Create automated Jest test suite.
-- Validate components (audio, controller, viz, playlist).
+- Build automated Pytest suite covering feature extraction, controller logic, decoder batching, and rendering orchestration.
+- Establish CI pipeline for linting, tests, and coverage.
 
 ### Steps
 1. **Unit Tests**
-   - [ ] Write tests for `features.js`, `controller.js`, `viz.canvas.js`, and `viz.three.js`.
-   - [ ] Mock ORT, Three.js, and Audio elements.
+   - [ ] Add Pytest coverage for `audio_features.py`, `controller.py`, `decoder.py`, and `postfx.py` using deterministic fixtures.  
+   - [ ] Create mocks/stubs for ONNX Runtime and FFmpeg pipelines to avoid heavy dependencies in tests.  
+   - [ ] Ensure tests validate seed determinism and numerical tolerances.
 
 2. **Integration Tests**
-   - [ ] Verify end-to-end playlist flow (load → play → next → resume).  
-   - [ ] Ensure rendering and decoding pipelines execute without exceptions.
+   - [ ] Implement `tests/test_render_track.py` to render a 5-second fixture using mock FFmpeg and verify metadata output.  
+   - [ ] Add `tests/test_render_album.py` to exercise resume/eject path and concatenation manifest generation.
 
 3. **CI/CD Setup**
-   - [ ] Configure GitHub Actions workflow (`.github/workflows/ci.yml`).  
-   - [ ] Include lint, test, and coverage artifact upload.
+   - [ ] Configure GitHub Actions workflow (`.github/workflows/ci.yml`) with Python matrix (CPU).  
+   - [ ] Run `ruff`, `black --check`, and `pytest --cov`.  
+   - [ ] Upload coverage XML/HTML as build artifacts and ensure LFS checkout works.
 
 ### Deliverable
-Green CI pipeline with ≥90% Jest coverage.
+Green CI pipeline with ≥85% Pytest coverage and linting gates.
 
 **Human Verification Checklist**
-- [ ] Run `npm test` → all tests pass.  
-- [ ] Inspect coverage report (≥90%).  
-- [ ] Review CI logs on GitHub Actions.  
-- [ ] Manually open app post-build to confirm functional parity.
+- [ ] Run `pytest --cov` locally → all tests pass, coverage ≥85%.  
+- [ ] Inspect CI run on GitHub Actions for lint/test success.  
+- [ ] Review coverage report to confirm critical modules covered.  
+- [ ] Spot-check test fixtures to ensure no real FFmpeg/ONNX execution in CI.
 
 ---
 
@@ -183,20 +193,21 @@ Green CI pipeline with ≥90% Jest coverage.
 
 ### Objectives
 - Package project for distribution and archival.  
-- Document dataset, model, and audio rights.
+- Document dataset, model, audio rights, and rendering workflow.
 
 ### Steps
 1. **Licensing**
    - [ ] Add `DATA_LICENSE.md` and `AUDIO_LICENSE.md`.  
-   - [ ] Ensure all MP3s and generated data have redistributable licenses.
+   - [ ] Ensure all audio and generated assets have redistributable licenses and attribution notes.
 
 2. **Repo Cleanup**
    - [ ] Confirm all large assets tracked by Git LFS.  
-   - [ ] Remove temporary files and logs.
+   - [ ] Remove temporary caches/logs or move them under `/archive/`.
 
 3. **Documentation**
-   - [ ] Finalize `DESIGN.md` and this `PLAN.md`.  
-   - [ ] Add `README.md` with usage, installation, and credits.
+   - [ ] Finalize `DESIGN.md`, `PLAN.md`, and `AGENTS.md` to reflect completed work.  
+   - [ ] Update `README.md` with environment setup, render instructions, and troubleshooting.  
+   - [ ] Create/refresh `RENDER_GUIDE.md` detailing presets, config options, and FFmpeg requirements.
 
 ### Deliverable
 A fully documented Git repository ready for public release.
@@ -205,16 +216,16 @@ A fully documented Git repository ready for public release.
 - [ ] Open `README.md` → confirm setup and usage instructions.  
 - [ ] Spot-check LICENSE files for accuracy.  
 - [ ] Ensure repo clone succeeds with partial LFS checkout.  
-- [ ] Confirm app runs standalone (no build, no network beyond CDN).
+- [ ] Execute sample render command to verify offline pipeline works end-to-end.
 
 ---
 
 ## Phase 7 — Optional Extensions
 
 ### Potential Enhancements
-- Add beat detection or BPM-synced latent oscillation.  
-- Introduce additional post-fx in Three.js (glitch, lens distortion).  
-- Export latent evolution as JSON for each track.  
+- Add beat-detected camera moves or spline-based latent choreography.  
+- Integrate super-resolution upscaling pass (e.g., latent SR) for 4K renders.  
+- Export per-track latent timelines and feature logs for archival/analysis.  
 - Implement procedural dataset generator to replace SD 1.5.
 
 **Human Verification Checklist**

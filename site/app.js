@@ -117,9 +117,41 @@ function initControls(audio) {
 
 async function bootstrap() {
   postMessage("Bootstrapping…");
+  const secureContext = window.isSecureContext;
+  const webgpuAvailable = typeof navigator !== "undefined" && !!navigator.gpu;
+  if (!secureContext || !webgpuAvailable) {
+    const reason = !secureContext ? "page is not in a secure context" : "WebGPU API unavailable";
+    postMessage(
+      `WebGPU cannot be used (${reason}); decoder will fall back to WASM (slower). Serve via https://localhost (e.g., \`python -m http.server\`) or enable WebGPU in your browser for best performance.`,
+      "warn",
+    );
+  }
+  if (typeof window.crossOriginIsolated !== "undefined" && !window.crossOriginIsolated) {
+    postMessage(
+      "Cross-origin isolation disabled → WASM runs single-threaded. Add COOP/COEP headers if multi-threaded WASM is required.",
+      "warn",
+    );
+  }
+
+  let webgpuAdapter = null;
+  if (webgpuAvailable) {
+    try {
+      webgpuAdapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+      if (!webgpuAdapter) {
+        postMessage("WebGPU adapter not found (browser returned null). Staying on WASM backend.", "warn");
+      }
+    } catch (error) {
+      console.warn("[app] navigator.gpu.requestAdapter failed", error);
+      postMessage(`WebGPU adapter request failed: ${error.message}.`, "warn");
+    }
+  }
 
   const meta = await loadJSON("../models/meta.json");
-  const sessionInfo = await createDecoderSession(meta, { preferInt8: true });
+  const sessionInfo = await createDecoderSession(meta, { preferInt8: true, adapter: webgpuAdapter });
+  postMessage(
+    `Decoder ready (${sessionInfo.modelType.toUpperCase()} via ${sessionInfo.providers?.join(" → ") || "unknown"})`,
+    "success",
+  );
 
   const playlist = await loadPlaylist();
   const audioPipeline = createAudioPipeline(elements.audio);
@@ -135,6 +167,18 @@ async function bootstrap() {
     sensitivity: Number.parseFloat(elements.sensitivity?.value || "0.75"),
     smoothing: Number.parseFloat(elements.smoothing?.value || "0.9"),
   });
+  const usingWasm = sessionInfo.providers?.includes("wasm") && !sessionInfo.providers?.includes("webgpu");
+  function computeSkipFrames() {
+    if (!usingWasm) return 1;
+    const size = Number.parseInt(elements.quality?.value || "384", 10);
+    const threads = sessionInfo.wasmThreads || 1;
+    if (threads > 1) {
+      return size > 384 ? 2 : 1;
+    }
+    return size > 320 ? 3 : 2;
+  }
+  let skipFrames = computeSkipFrames();
+  let frameCounter = 0;
 
   let rendererMode = elements.renderer?.value || "canvas";
   let viz = await createCanvasViz({
@@ -235,6 +279,7 @@ async function bootstrap() {
   elements.quality?.addEventListener("change", () => {
     const size = Number.parseInt(elements.quality.value, 10);
     viz.resize(size);
+    skipFrames = computeSkipFrames();
   });
 
   async function switchRenderer(nextMode) {
@@ -316,16 +361,23 @@ async function bootstrap() {
     }
   });
 
-  postMessage(`Decoder ready (${sessionInfo.modelType.toUpperCase()})`);
-
   const fpsState = { timestamp: performance.now(), accumulator: 0, frames: 0 };
   function loop() {
+    frameCounter += 1;
     const { vector, metrics } = featureExtractor.nextFrame();
     const latent = controller.update(vector, metrics);
-    viz.render(latent);
+    if (frameCounter % skipFrames === 0) {
+      viz.render(latent);
+    }
     const fps = calculateFps({ now: performance.now(), previous: fpsState, frames: 1 });
     if (fps && elements.fps) {
       elements.fps.textContent = `${fps.toFixed(1)} fps`;
+      if (usingWasm && fps < 5) {
+        postMessage(
+          "Low FPS detected on WASM backend. Serve the site over HTTPS/localhost to enable WebGPU, or reduce quality.",
+          "warn",
+        );
+      }
     }
     requestAnimationFrame(loop);
   }
