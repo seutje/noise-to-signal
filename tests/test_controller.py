@@ -21,13 +21,15 @@ def _make_config(tmp_path) -> tuple[RenderConfig, TrackConfig]:
         src=tmp_path / "fixture.wav",
         preset="default",
     )
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
     config = RenderConfig(
         output_root=tmp_path / "renders",
         frame_rate=60,
         resolution=[1920, 1088],
         audio=AudioConfig(sample_rate=48_000, normalization=-14.0),
         controller=ControllerConfig(preset="default", smoothing_alpha=0.9, wander_seed=42),
-        decoder=DecoderConfig(batch_size=4, execution_provider="cpu"),
+        decoder=DecoderConfig(batch_size=4, execution_provider="cpu", checkpoint=checkpoint),
         postfx=PostFXConfig(),
         tracks=[track],
     )

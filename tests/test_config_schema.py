@@ -20,12 +20,15 @@ from renderer.config_schema import (
 
 def test_load_render_config_with_presets_and_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_path = tmp_path / "render.yaml"
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
     config_path.write_text(
         json.dumps(
             {
                 "output_root": "outputs",
                 "frame_rate": 30,
                 "resolution": [1920, 1088],
+                "decoder": {"checkpoint": "vae-best.ckpt"},
                 "tracks": [{"id": "demo", "src": "track.wav"}],
                 "metadata": {"album": "noise-to-signal"},
             }
@@ -70,13 +73,15 @@ def test_load_yaml_file_errors(tmp_path: Path) -> None:
 
 def test_render_config_validation_resolution(tmp_path: Path) -> None:
     track = TrackConfig(id="t", src=tmp_path / "t.wav")
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
     config = RenderConfig(
         output_root=tmp_path / "out",
         frame_rate=30,
         resolution=[1921, 1087],
         audio=AudioConfig(),
         controller=ControllerConfig(),
-        decoder=DecoderConfig(),
+        decoder=DecoderConfig(checkpoint=checkpoint),
         postfx=PostFXConfig(),
         tracks=[track],
     )
@@ -98,10 +103,13 @@ def test_track_trim_validation() -> None:
 
 def test_render_config_describe_includes_tracks(tmp_path: Path) -> None:
     track = TrackConfig(id="demo", src=tmp_path / "track.wav", seed=5)
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
     config = RenderConfig(
         output_root=tmp_path / "renders",
         frame_rate=60,
         resolution=[1920, 1088],
+        decoder=DecoderConfig(checkpoint=checkpoint),
         tracks=[track],
     )
     description = config.describe()

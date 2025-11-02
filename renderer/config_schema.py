@@ -97,6 +97,8 @@ class AudioConfig:
 class DecoderConfig:
     batch_size: int = 32
     execution_provider: str = "cuda"
+    checkpoint: Path = Path("training/outputs/checkpoints/vae-best.ckpt")
+    use_ema: bool = True
 
     def validate(self) -> None:
         if self.batch_size <= 0:
@@ -105,6 +107,12 @@ class DecoderConfig:
         if self.execution_provider.lower() not in allowed:
             raise ValueError(
                 f"decoder.execution_provider must be one of {sorted(allowed)}."
+            )
+        if not isinstance(self.checkpoint, Path):
+            raise TypeError("decoder.checkpoint must be a filesystem path.")
+        if not self.checkpoint.is_file():
+            raise FileNotFoundError(
+                f"decoder.checkpoint not found at {self.checkpoint}"
             )
 
 
@@ -196,6 +204,8 @@ class RenderConfig:
             "decoder": {
                 "batch_size": self.decoder.batch_size,
                 "execution_provider": self.decoder.execution_provider,
+                "checkpoint": str(self.decoder.checkpoint),
+                "use_ema": self.decoder.use_ema,
             },
             "postfx": {
                 "tone_curve": self.postfx.tone_curve,
@@ -313,6 +323,20 @@ def _parse_config_mapping(
     tracks_cfg = mapping.get("tracks") or []
     metadata_cfg = mapping.get("metadata", {})
 
+    checkpoint_value = decoder_cfg.get("checkpoint")
+    if checkpoint_value:
+        checkpoint_path = Path(checkpoint_value)
+        if not checkpoint_path.is_absolute():
+            checkpoint_path = (config_dir / checkpoint_path).resolve()
+    else:
+        checkpoint_path = (
+            PACKAGE_ROOT.parent
+            / "training"
+            / "outputs"
+            / "checkpoints"
+            / "vae-best.ckpt"
+        ).resolve()
+
     render_cfg = RenderConfig(
         output_root=output_root_path,
         frame_rate=frame_rate,
@@ -336,6 +360,8 @@ def _parse_config_mapping(
             execution_provider=str(
                 decoder_cfg.get("execution_provider", "cuda")
             ).lower(),
+            checkpoint=checkpoint_path,
+            use_ema=bool(decoder_cfg.get("use_ema", True)),
         ),
         postfx=PostFXConfig(
             tone_curve=str(postfx_cfg.get("tone_curve", "filmlog")),
@@ -405,4 +431,3 @@ def write_config_template(path: Path) -> None:
     if not template_path.exists():
         raise FileNotFoundError("Bundled render.yaml template is missing.")
     path.write_text(template_path.read_text())
-

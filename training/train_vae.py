@@ -3,6 +3,7 @@ import csv
 import json
 import logging
 import math
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -538,6 +539,14 @@ def main() -> None:
     )
 
     trainer.fit(model, datamodule=data_module, ckpt_path=args.resume)
+    best_path = Path(checkpoint_callback.best_model_path or "")
+    if best_path.is_file():
+        target = best_path.parent / "vae-best.ckpt"
+        try:
+            shutil.copy2(best_path, target)
+            logger.info("Copied best checkpoint %s → %s", best_path.name, target)
+        except OSError as exc:
+            logger.warning("Failed to copy best checkpoint to %s: %s", target, exc)
 
     if model.example_batch is not None:
         metadata = {

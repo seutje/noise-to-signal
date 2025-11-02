@@ -9,9 +9,18 @@ from renderer.config_schema import AudioConfig, ControllerConfig, DecoderConfig,
 
 
 class DummyDecoderSession:
-    def __init__(self, *, execution_provider: str, batch_size: int) -> None:
+    def __init__(
+        self,
+        *,
+        execution_provider: str,
+        batch_size: int,
+        checkpoint_path: Path,
+        use_ema: bool,
+    ) -> None:
         self.execution_provider = execution_provider
         self.batch_size = batch_size
+        self.checkpoint_path = checkpoint_path
+        self.use_ema = use_ema
 
 
 def test_render_album_writes_metadata(tmp_path: Path, monkeypatch) -> None:
@@ -23,13 +32,21 @@ def test_render_album_writes_metadata(tmp_path: Path, monkeypatch) -> None:
     track_one = TrackConfig(id="one", src=audio_one, seed=11)
     track_two = TrackConfig(id="two", src=audio_two, seed=22)
 
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
+
     config = RenderConfig(
         output_root=tmp_path / "outputs",
         frame_rate=30,
         resolution=[1920, 1088],
         audio=AudioConfig(),
         controller=ControllerConfig(),
-        decoder=DecoderConfig(batch_size=2, execution_provider="cpu"),
+        decoder=DecoderConfig(
+            batch_size=2,
+            execution_provider="cpu",
+            checkpoint=checkpoint,
+            use_ema=True,
+        ),
         postfx=PostFXConfig(),
         tracks=[track_one, track_two],
     )
@@ -37,9 +54,20 @@ def test_render_album_writes_metadata(tmp_path: Path, monkeypatch) -> None:
 
     decoder_inits: list[tuple[str, int]] = []
 
-    def fake_decoder_session(*, execution_provider: str, batch_size: int):
+    def fake_decoder_session(
+        *,
+        execution_provider: str,
+        batch_size: int,
+        checkpoint_path: Path,
+        use_ema: bool,
+    ):
         decoder_inits.append((execution_provider, batch_size))
-        return DummyDecoderSession(execution_provider=execution_provider, batch_size=batch_size)
+        return DummyDecoderSession(
+            execution_provider=execution_provider,
+            batch_size=batch_size,
+            checkpoint_path=checkpoint_path,
+            use_ema=use_ema,
+        )
 
     monkeypatch.setattr(
         "renderer.render_album.DecoderSession",

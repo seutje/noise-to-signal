@@ -2,7 +2,7 @@
   "epochs": 150,
   "batch_size": 4,
   "resolution": 256,
-  "best_lpips": 0.38703668117523193,
+  "best_lpips": 0.3580199182033539,
   "latent_channels": 8,
   "beta": 1.0,
   "kl_warmup_epochs": 8.0,

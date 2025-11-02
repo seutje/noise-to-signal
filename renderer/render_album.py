@@ -110,6 +110,8 @@ def render_album(
         decoder = DecoderSession(
             execution_provider=config.decoder.execution_provider,
             batch_size=config.decoder.batch_size,
+            checkpoint_path=config.decoder.checkpoint,
+            use_ema=config.decoder.use_ema,
         )
     except DecoderUnavailableError as exc:
         LOG.error("Decoder initialisation failed: %s", exc)

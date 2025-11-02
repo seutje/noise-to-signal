@@ -66,13 +66,15 @@ def test_render_track_pipeline(tmp_path: Path, monkeypatch) -> None:
     audio_path.write_bytes(b"audio")
 
     track = TrackConfig(id="fixture", src=audio_path, preset="baseline", seed=7)
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
     config = RenderConfig(
         output_root=tmp_path / "renders",
         frame_rate=30,
         resolution=[1920, 1088],
         audio=AudioConfig(sample_rate=48_000, normalization=-14.0),
         controller=ControllerConfig(preset="baseline", wander_seed=42),
-        decoder=DecoderConfig(batch_size=4, execution_provider="cpu"),
+        decoder=DecoderConfig(batch_size=4, execution_provider="cpu", checkpoint=checkpoint),
         postfx=PostFXConfig(grain_intensity=0.0, motion_trails=False),
         tracks=[track],
     )

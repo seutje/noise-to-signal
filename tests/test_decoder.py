@@ -1,102 +1,94 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import torch
 
 from renderer import decoder
 
 
-class FakeInvalidDims(RuntimeError):
-    pass
+class _FakeLatent:
+    channels = 8
+    height = 16
+    width = 16
 
 
-class FakeOrtModule:
-    def __init__(self) -> None:
-        self.SessionOptions = SimpleNamespace  # Placeholder; attributes assigned dynamically
-        self.attempts: list[tuple[str, str]] = []
-        self.calls: list[int] = []
-
-    def InferenceSession(self, path: str, sess_options: object, providers: list[str]):
-        self.attempts.append((path, providers[0]))
-        return FakeSession(path, providers[0], self.calls)
+class _ConstantDecoder(torch.nn.Module):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+        batch = x.shape[0]
+        device = x.device
+        return torch.ones((batch, 3, 16, 16), device=device, dtype=torch.float32)
 
 
-class FakeSession:
-    def __init__(self, path: str, provider: str, calls: list[int]) -> None:
-        self._path = path
-        self._provider = provider
-        self._calls = calls
-
-    def get_inputs(self):
-        return [SimpleNamespace(name="latent")]
-
-    def get_outputs(self):
-        return [SimpleNamespace(name="decoded")]
-
-    def get_providers(self):
-        return [self._provider]
-
-    def run(self, outputs: list[str], feeds: dict[str, np.ndarray]):
-        (array,) = feeds.values()
-        batch = int(array.shape[0])
-        self._calls.append(batch)
-        if batch > 2:
-            raise FakeInvalidDims("invalid dimensions for batch")
-        # Decoder output is channels-first; three colour channels expected.
-        frames = np.ones((batch, 3, 16, 16), dtype=np.float32) * 0.6
-        return [frames]
+class _ExplodingDecoder(torch.nn.Module):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+        raise RuntimeError("decoder failure")
 
 
-def _write_meta(tmp_path: Path) -> Path:
-    meta = {
-        "latent_shape": [8, 16, 16],
-        "int8_decoder": str(tmp_path / "decoder.int8.onnx"),
-        "fp16_decoder": str(tmp_path / "decoder.fp16.onnx"),
-        "fp32_decoder": str(tmp_path / "decoder.fp32.onnx"),
-        "normalization": {"mean": [0.5, 0.5, 0.5], "std": [0.5, 0.5, 0.5]},
-    }
-    for key in ("decoder.int8.onnx", "decoder.fp16.onnx", "decoder.fp32.onnx"):
-        (tmp_path / key).write_bytes(b"onnx")
-    meta_path = tmp_path / "meta.json"
-    meta_path.write_text(json.dumps(meta))
-    return meta_path
+class _DummyLightning:
+    def __init__(self, module: torch.nn.Module) -> None:
+        self.model = SimpleNamespace(decoder=module, latent=_FakeLatent())
+        self.ema = None
+
+    @classmethod
+    def load_from_checkpoint(cls, *_args, **_kwargs) -> "_DummyLightning":  # type: ignore[override]
+        raise AssertionError("load_from_checkpoint should be monkeypatched in tests")
 
 
-def test_decoder_session_adjusts_batch_size(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_ort = FakeOrtModule()
-    monkeypatch.setattr(decoder, "ort", fake_ort)
-    monkeypatch.setattr(decoder, "_ORTInvalidArgument", FakeInvalidDims)
-    monkeypatch.setattr(decoder, "_ORTRuntimeException", FakeInvalidDims)
+def _install_dummy_loader(monkeypatch: pytest.MonkeyPatch, module: torch.nn.Module) -> None:
+    def _loader(*_args, **_kwargs) -> _DummyLightning:
+        return _DummyLightning(module)
 
-    meta_path = _write_meta(tmp_path)
+    monkeypatch.setattr(decoder, "BetaVAELightning", _DummyLightning)
+    monkeypatch.setattr(_DummyLightning, "load_from_checkpoint", classmethod(_loader))
 
-    # Ensure SessionOptions provides expected attribute for intra_op threads.
-    class FakeSessionOptions:
-        def __init__(self) -> None:
-            self.intra_op_num_threads = None
 
-    monkeypatch.setattr(fake_ort, "SessionOptions", FakeSessionOptions)
+def test_decoder_session_decodes_batches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
+
+    _install_dummy_loader(monkeypatch, _ConstantDecoder())
 
     session = decoder.DecoderSession(
-        execution_provider="cuda",
-        batch_size=4,
-        meta_path=meta_path,
+        execution_provider="cpu",
+        batch_size=3,
+        checkpoint_path=checkpoint,
     )
 
     latents = np.zeros((5, 8, 16, 16), dtype=np.float32)
-    frames = session.decode(latents, batch_size=3)
+    frames = session.decode(latents, batch_size=4)
 
     assert frames.shape == (5, 16, 16, 3)
-    assert np.all(frames >= 0.0)
-    assert np.all(frames <= 1.0)
-    # The failing batch (>2) forces a retry with batch size 1.
-    assert session.default_batch_size == 1
-    assert fake_ort.calls.count(1) == 5
-    assert fake_ort.attempts[0][1] == "CUDAExecutionProvider"
+    assert np.allclose(frames, 1.0, atol=1e-6)
+    assert session.current_provider == "cpu"
+    assert session.precision == "fp32"
 
-    with pytest.raises(ValueError):
-        session.decode(np.zeros((2, 4, 16, 16), dtype=np.float32))
+
+def test_decoder_session_wraps_runtime_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    checkpoint = tmp_path / "vae-best.ckpt"
+    checkpoint.write_text("checkpoint")
+
+    _install_dummy_loader(monkeypatch, _ExplodingDecoder())
+
+    session = decoder.DecoderSession(
+        execution_provider="cpu",
+        batch_size=2,
+        checkpoint_path=checkpoint,
+    )
+
+    latents = np.zeros((2, 8, 16, 16), dtype=np.float32)
+    with pytest.raises(decoder.DecoderExecutionError):
+        session.decode(latents)
+
+
+def test_decoder_session_rejects_missing_checkpoint(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.ckpt"
+    with pytest.raises(decoder.DecoderUnavailableError):
+        decoder.DecoderSession(
+            execution_provider="cpu",
+            batch_size=2,
+            checkpoint_path=missing,
+        )

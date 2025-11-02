@@ -22,6 +22,8 @@ controller:
 decoder:
   batch_size: 32
   execution_provider: cuda
+  checkpoint: training/outputs/checkpoints/vae-best.ckpt
+  use_ema: true
 
 postfx:
   tone_curve: filmlog
