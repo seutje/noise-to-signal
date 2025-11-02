@@ -23,6 +23,37 @@ from .models import BetaVAE, EMA, LatentConfig
 logger = logging.getLogger(__name__)
 
 
+def _to_rgb01(x: torch.Tensor) -> torch.Tensor:
+    """Convert tensors from [-1, 1] to [0, 1] range."""
+    return x * 0.5 + 0.5
+
+
+def _mean_saturation(rgb: torch.Tensor) -> torch.Tensor:
+    """Return batch-averaged HSV saturation for RGB inputs in [0, 1]."""
+    c_max, _ = rgb.max(dim=1)
+    c_min, _ = rgb.min(dim=1)
+    denom = torch.clamp(c_max, min=1e-3)
+    saturation = (c_max - c_min) / denom
+    return saturation.mean()
+
+
+def _chroma_components(rgb: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Convert RGB in [0, 1] to approximate YUV chroma components.
+
+    Returns
+    -------
+    Tuple of (U, V) tensors preserving gradients for chroma-aware losses.
+    """
+    r = rgb[:, 0]
+    g = rgb[:, 1]
+    b = rgb[:, 2]
+    y = 0.299 * r + 0.587 * g + 0.114 * b
+    u = 0.492 * (b - y)
+    v = 0.877 * (r - y)
+    return u, v
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train β-VAE on generated abstract dataset.")
     parser.add_argument("--data-root", type=Path, default=Path("data/sd15_abstract"), help="Root folder with PNGs.")
@@ -41,7 +72,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     parser.add_argument("--lr", type=float, default=3e-4, help="AdamW learning rate.")
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="AdamW weight decay.")
-    parser.add_argument("--beta", type=float, default=3.0, help="β coefficient for KL term.")
+    parser.add_argument("--beta", type=float, default=1.0, help="β coefficient for KL term.")
+    parser.add_argument(
+        "--chroma-weight",
+        type=float,
+        default=2.0,
+        help="Weight applied to U/V chroma reconstruction loss.",
+    )
+    parser.add_argument(
+        "--saturation-weight",
+        type=float,
+        default=0.5,
+        help="Weight applied to saturation preservation penalty.",
+    )
     parser.add_argument("--kl-warmup-epochs", type=float, default=8.0, help="KL warmup duration in epochs.")
     parser.add_argument("--precision", type=str, default="bf16-mixed", help="Lightning precision flag.")
     parser.add_argument("--grad-clip", type=float, default=1.0, help="Gradient clipping norm value.")
@@ -244,6 +287,8 @@ class BetaVAELightning(pl.LightningModule):
         output_dir: Path,
         num_samples: int,
         use_grad_checkpoint: bool,
+        chroma_weight: float,
+        saturation_weight: float,
     ) -> None:
         super().__init__()
         latent = LatentConfig(channels=latent_channels, height=16, width=16)
@@ -266,6 +311,8 @@ class BetaVAELightning(pl.LightningModule):
                 "output_dir": str(output_dir),
                 "num_samples": num_samples,
                 "use_grad_checkpoint": use_grad_checkpoint,
+                "chroma_weight": chroma_weight,
+                "saturation_weight": saturation_weight,
             }
         )
         self.output_dir = Path(output_dir)
@@ -273,6 +320,8 @@ class BetaVAELightning(pl.LightningModule):
         self.best_lpips = math.inf
         self.example_batch: Optional[torch.Tensor] = None
         self.ema = None if disable_ema else EMA(self.model.decoder, decay=ema_decay)
+        self.chroma_weight = chroma_weight
+        self.saturation_weight = saturation_weight
 
     def configure_optimizers(self) -> Dict[str, Any]:
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
@@ -297,7 +346,21 @@ class BetaVAELightning(pl.LightningModule):
         l1 = F.l1_loss(recon, images)
         lpips_loss = self.lpips(recon, images).mean()
         kl = -0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
-        loss = 10.0 * l1 + lpips_loss + self.kl_weight() * kl
+        recon_rgb = _to_rgb01(recon)
+        target_rgb = _to_rgb01(images)
+        recon_u, recon_v = _chroma_components(recon_rgb)
+        target_u, target_v = _chroma_components(target_rgb)
+        chroma_l1 = F.l1_loss(recon_u, target_u) + F.l1_loss(recon_v, target_v)
+        sat_recon = _mean_saturation(recon_rgb)
+        sat_target = _mean_saturation(target_rgb).detach()
+        sat_penalty = torch.relu(sat_target - sat_recon)
+        loss = (
+            10.0 * l1
+            + lpips_loss
+            + self.kl_weight() * kl
+            + self.chroma_weight * chroma_l1
+            + self.saturation_weight * sat_penalty
+        )
 
         self.log_dict(
             {
@@ -305,6 +368,9 @@ class BetaVAELightning(pl.LightningModule):
                 "train/l1": l1,
                 "train/lpips": lpips_loss,
                 "train/kl": kl,
+                "train/chroma_l1": chroma_l1,
+                "train/sat_recon": sat_recon,
+                "train/sat_target": sat_target,
             },
             prog_bar=True,
             on_step=True,
@@ -320,12 +386,34 @@ class BetaVAELightning(pl.LightningModule):
         l1 = F.l1_loss(recon, images)
         lpips_loss = self.lpips(recon, images).mean()
         kl = -0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
-        loss = 10.0 * l1 + lpips_loss + self.hparams.beta * kl
+        recon_rgb = _to_rgb01(recon)
+        target_rgb = _to_rgb01(images)
+        recon_u, recon_v = _chroma_components(recon_rgb)
+        target_u, target_v = _chroma_components(target_rgb)
+        chroma_l1 = F.l1_loss(recon_u, target_u) + F.l1_loss(recon_v, target_v)
+        sat_recon = _mean_saturation(recon_rgb)
+        sat_target = _mean_saturation(target_rgb)
+        sat_penalty = torch.relu(sat_target.detach() - sat_recon)
+        loss = (
+            10.0 * l1
+            + lpips_loss
+            + self.hparams.beta * kl
+            + self.chroma_weight * chroma_l1
+            + self.saturation_weight * sat_penalty
+        )
 
         if self.example_batch is None and self.global_rank == 0:
             self.example_batch = images[: self.hparams.num_samples].detach().cpu()
 
-        metrics = {"val/loss": loss, "val/l1": l1, "val/lpips": lpips_loss, "val/kl": kl}
+        metrics = {
+            "val/loss": loss,
+            "val/l1": l1,
+            "val/lpips": lpips_loss,
+            "val/kl": kl,
+            "val/chroma_l1": chroma_l1,
+            "val/sat_recon": sat_recon,
+            "val/sat_target": sat_target,
+        }
         self.log_dict(metrics, prog_bar=True, on_epoch=True, sync_dist=True)
         return metrics
 
@@ -421,6 +509,8 @@ def main() -> None:
         output_dir=args.output,
         num_samples=args.num_samples,
         use_grad_checkpoint=not args.no_grad_checkpoint,
+        chroma_weight=args.chroma_weight,
+        saturation_weight=args.saturation_weight,
     )
 
     checkpoint_callback = ModelCheckpoint(
@@ -459,6 +549,8 @@ def main() -> None:
             "beta": args.beta,
             "kl_warmup_epochs": args.kl_warmup_epochs,
             "ema_enabled": not args.no_ema,
+            "chroma_weight": args.chroma_weight,
+            "saturation_weight": args.saturation_weight,
         }
         meta_path = args.output / "training_summary.json"
         meta_path.write_text(json.dumps(metadata, indent=2))

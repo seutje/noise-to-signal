@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkpoint": "training/outputs/checkpoints/vae-epoch=077-val_lpips=0.0000.ckpt",
+  "checkpoint": "training/outputs/checkpoints/vae-epoch=148-val_lpips=0.0000.ckpt",
   "image_resolution": 256,
   "latent_shape": [
     8,
@@ -11,7 +11,7 @@
   "fp32_decoder": "models/decoder.fp32.onnx",
   "dynamic_axes": false,
   "opset": 18,
-  "beta": 3.0,
+  "beta": 1.0,
   "kl_warmup_epochs": 8.0,
   "ema_exported": true,
   "normalization": {
@@ -30,7 +30,7 @@
   "quantization": {
     "method": "static_qdq",
     "per_channel": false,
-    "psnr_db": 33.0700586588518,
+    "psnr_db": 31.29977493048376,
     "samples": 32
   },
   "anchor_sets": {

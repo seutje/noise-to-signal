@@ -1,0 +1,14 @@
+beta: 1.0
+chroma_weight: 3.0
+disable_ema: false
+ema_decay: 0.999
+image_resolution: 256
+kl_warmup_epochs: 8.0
+latent_channels: 8
+lr: 0.0001
+max_epochs: 82
+num_samples: 8
+output_dir: training/outputs
+saturation_weight: 0.75
+use_grad_checkpoint: true
+weight_decay: 0.0001

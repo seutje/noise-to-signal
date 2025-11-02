@@ -1,10 +1,12 @@
 {
-  "epochs": 80,
-  "batch_size": 8,
+  "epochs": 150,
+  "batch_size": 4,
   "resolution": 256,
-  "best_lpips": 0.4576718807220459,
+  "best_lpips": 0.38703668117523193,
   "latent_channels": 8,
-  "beta": 3.0,
+  "beta": 1.0,
   "kl_warmup_epochs": 8.0,
-  "ema_enabled": true
+  "ema_enabled": true,
+  "chroma_weight": 3.0,
+  "saturation_weight": 0.75
 }

@@ -37,7 +37,7 @@ metadata:
 tracks:
   - id: null-hypothesis
     src: "album/01 - Null Hypothesis.mp3"
-    preset: fracture
+    preset: pulse
     anchors: baseline
     seed: 101
     trim:

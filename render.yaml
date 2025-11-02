@@ -1,10 +1,10 @@
-# Default render configuration for the noise-to-signal renderer.
+# Template render configuration for noise-to-signal.
 #
-# Adjust paths and presets before running `python -m renderer.render_album`.
+# Copy this file to the project root (render.yaml) and customise as needed.
 
-output_root: renders/album-demo
+output_root: renders/demo-run
 frame_rate: 60
-resolution: [1920, 1088]  # height rounded up to nearest multiple of 16
+resolution: [1920, 1088]  # ensure divisible by 16
 
 audio:
   sample_rate: 48000
@@ -31,37 +31,55 @@ postfx:
   motion_trails: false
 
 metadata:
-  album: placeholder
+  album: noise-to-signal-demo
   version: 0.1.0
 
 tracks:
   - id: null-hypothesis
-    src: album/01 - Null Hypothesis.mp3
-    preset: default
+    src: "album/01 - Null Hypothesis.mp3"
+    preset: fracture
+    anchors: baseline
+    seed: 101
     trim:
       start: 0.0
       end: null
   - id: seed-42
-    src: album/02 - Seed 42.mp3
-    preset: pulse
+    src: "album/02 - Seed 42.mp3"
+    preset: surge
+    anchors: pulse
+    seed: 142
   - id: static-saint
-    src: album/03 - Static Saint.mp3
-    preset: drift
+    src: "album/03 - Static Saint.mp3"
+    preset: lumen
+    anchors: baseline
+    seed: 203
   - id: delta-form
-    src: album/04 - ΔForm.mp3
-    preset: pulse
+    src: "album/04 - ΔForm.mp3"
+    preset: fracture
+    anchors: baseline
+    seed: 204
   - id: standard-deviation
-    src: album/05 - Standard Deviation.mp3
-    preset: default
+    src: "album/05 - Standard Deviation.mp3"
+    preset: surge
+    anchors: pulse
+    seed: 305
   - id: checksum-failed
-    src: album/06 - Checksum Failed.mp3
-    preset: pulse
+    src: "album/06 - Checksum Failed.mp3"
+    preset: fracture
+    anchors: baseline
+    seed: 306
   - id: fragments-of-reality
-    src: album/07 - Fragments of Reality.mp3
-    preset: drift
+    src: "album/07 - Fragments of Reality.mp3"
+    preset: nocturne
+    anchors: drift
+    seed: 407
   - id: magic-number
-    src: album/08 - Magic Number.mp3
-    preset: pulse
+    src: "album/08 - Magic Number.mp3"
+    preset: lumen
+    anchors: baseline
+    seed: 408
   - id: ghost-signal
-    src: album/09 - Ghost Signal.mp3
-    preset: drift
+    src: "album/09 - Ghost Signal.mp3"
+    preset: nocturne
+    anchors: drift
+    seed: 509

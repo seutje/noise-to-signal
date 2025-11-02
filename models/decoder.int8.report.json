@@ -1,7 +1,7 @@
 {
   "fp16_model": "models/decoder.fp16.onnx",
   "int8_model": "models/decoder.int8.onnx",
-  "psnr_db": 33.0700586588518,
+  "psnr_db": 31.29977493048376,
   "per_channel": false,
   "samples": 32,
   "providers": [
