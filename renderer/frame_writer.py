@@ -195,12 +195,15 @@ class FFMpegWriter:
     # ------------------------------------------------------------------ #
 
     def close(self) -> PreviewBundle:
-        if self._process.stdin and not self._process.stdin.closed:
-            try:
-                self._process.stdin.flush()
-            except ValueError:
-                pass
-            self._process.stdin.close()
+        if self._process.stdin:
+            if not self._process.stdin.closed:
+                try:
+                    self._process.stdin.flush()
+                except ValueError:
+                    pass
+                self._process.stdin.close()
+            # Prevent subprocess.communicate from flushing a closed pipe.
+            self._process.stdin = None
         stdout, stderr = self._process.communicate()
         if self._process.returncode != 0:
             LOG.error("FFmpeg stderr: %s", stderr.decode("utf-8", errors="ignore"))
