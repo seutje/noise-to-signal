@@ -8,7 +8,7 @@ and can be combined with preset overlays stored under `renderer/presets`.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict, replace
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence
 
@@ -278,6 +278,66 @@ def apply_presets(
         overlay = load_preset_dict(name)
         _deep_update(base_config, overlay)
     return base_config
+
+
+def resolve_track_config(
+    base_config: RenderConfig,
+    track: TrackConfig,
+) -> tuple[RenderConfig, Mapping[str, Any]]:
+    """
+    Return a copy of `base_config` with any track-level preset overlay applied.
+
+    The original config is not mutated. The accompanying mapping contains any
+    metadata defined in the preset (may be empty).
+    """
+    if not track.preset:
+        return base_config, {}
+
+    overlay = load_preset_dict(track.preset)
+    controller_overlay = overlay.get("controller", {})
+    postfx_overlay = overlay.get("postfx", {})
+    metadata = overlay.get("metadata", {})
+
+    controller_dict = asdict(base_config.controller)
+    postfx_dict = asdict(base_config.postfx)
+
+    if controller_overlay:
+        _deep_update(controller_dict, controller_overlay)
+    if postfx_overlay:
+        _deep_update(postfx_dict, postfx_overlay)
+
+    tempo_dict = controller_dict.get("tempo_sync") or {}
+    controller_cfg = ControllerConfig(
+        preset=str(controller_dict.get("preset", base_config.controller.preset)),
+        smoothing_alpha=float(
+            controller_dict.get("smoothing_alpha", base_config.controller.smoothing_alpha)
+        ),
+        wander_seed=int(controller_dict.get("wander_seed", base_config.controller.wander_seed)),
+        tempo_sync=TempoSyncConfig(
+            enabled=bool(tempo_dict.get("enabled", base_config.controller.tempo_sync.enabled)),
+            subdivision=float(
+                tempo_dict.get("subdivision", base_config.controller.tempo_sync.subdivision)
+            ),
+        ),
+        anchor_set=str(controller_dict.get("anchor_set", base_config.controller.anchor_set)),
+    )
+    controller_cfg.validate()
+
+    postfx_cfg = PostFXConfig(
+        tone_curve=str(postfx_dict.get("tone_curve", base_config.postfx.tone_curve)),
+        grain_intensity=float(
+            postfx_dict.get("grain_intensity", base_config.postfx.grain_intensity)
+        ),
+        chroma_shift=float(postfx_dict.get("chroma_shift", base_config.postfx.chroma_shift)),
+        vignette_strength=float(
+            postfx_dict.get("vignette_strength", base_config.postfx.vignette_strength)
+        ),
+        motion_trails=bool(postfx_dict.get("motion_trails", base_config.postfx.motion_trails)),
+    )
+    postfx_cfg.validate()
+
+    merged = replace(base_config, controller=controller_cfg, postfx=postfx_cfg)
+    return merged, metadata
 
 
 def _parse_track(entry: Mapping[str, Any], base_dir: Path) -> TrackConfig:

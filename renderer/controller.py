@@ -119,7 +119,9 @@ class LatentController:
         if track.seed is not None:
             seed ^= np.int64(track.seed)
         self.rng = np.random.default_rng(int(seed))
-        self._projection = None
+        self._projection: Optional[np.ndarray] = None
+        self._projection_bias: Optional[np.ndarray] = None
+        self._projection_norm: Optional[Tuple[np.ndarray, np.ndarray]] = None
         self._wander_offsets = self.rng.random(self.latent_size).astype(np.float32) * np.pi * 2
         self._wander_speeds = self.rng.uniform(0.05, 0.25, self.latent_size).astype(np.float32)
 
@@ -154,15 +156,53 @@ class LatentController:
         return wander_map.get(preset, 0.22)
 
     def _build_projection(self, feature_dim: int) -> np.ndarray:
-        if self._projection is not None and self._projection.shape[1] == feature_dim:
+        if (
+            self._projection is not None
+            and self._projection.shape[1] == feature_dim
+        ):
             return self._projection
-        projection = self.rng.normal(
-            loc=0.0,
-            scale=0.5,
-            size=(self.anchor_set.anchor_count, feature_dim),
-        ).astype(np.float32)
-        self._projection = projection
-        return projection
+
+        meta = _load_meta()
+        projections = meta.get("projections", {})  # type: ignore[assignment]
+        projection_info = projections.get(self.anchor_set.name, {}) if isinstance(projections, dict) else {}
+        matrix: Optional[np.ndarray] = None
+        bias: Optional[np.ndarray] = None
+        norm: Optional[Tuple[np.ndarray, np.ndarray]] = None
+
+        file_ref = projection_info.get("file") if isinstance(projection_info, dict) else None
+        if isinstance(file_ref, str):
+            proj_path = MODEL_ROOT.parent / file_ref
+            if proj_path.exists():
+                with np.load(proj_path, allow_pickle=False) as data:
+                    matrix = data["matrix"].astype(np.float32)
+                    if "bias" in data:
+                        bias = data["bias"].astype(np.float32)
+                    if "feature_mean" in data and "feature_std" in data:
+                        norm = (
+                            data["feature_mean"].astype(np.float32),
+                            data["feature_std"].astype(np.float32),
+                        )
+
+        if (
+            matrix is None
+            or matrix.shape[1] != feature_dim
+            or matrix.shape[0] != self.anchor_set.anchor_count
+        ):
+            matrix = self.rng.normal(
+                loc=0.0,
+                scale=0.5,
+                size=(self.anchor_set.anchor_count, feature_dim),
+            ).astype(np.float32)
+            bias = np.zeros(self.anchor_set.anchor_count, dtype=np.float32)
+            norm = None
+
+        if bias is None or bias.shape[0] != matrix.shape[0]:
+            bias = np.zeros(matrix.shape[0], dtype=np.float32)
+
+        self._projection = matrix
+        self._projection_bias = bias
+        self._projection_norm = norm
+        return matrix
 
     def generate(
         self,
@@ -172,6 +212,17 @@ class LatentController:
     ) -> LatentResult:
         frame_times, feature_matrix = self._resample_features(features)
         projection = self._build_projection(feature_matrix.shape[1])
+        bias = (
+            self._projection_bias
+            if self._projection_bias is not None
+            else np.zeros(self.anchor_set.anchor_count, dtype=np.float32)
+        )
+        norm = self._projection_norm
+        if norm is not None:
+            mean, std = norm
+            feature_matrix_scaled = (feature_matrix - mean) / std
+        else:
+            feature_matrix_scaled = feature_matrix
         anchors_flat = self.anchor_set.anchors.reshape(self.anchor_set.anchor_count, -1)
 
         _log(
@@ -208,7 +259,8 @@ class LatentController:
         )
 
         for idx, (time_sec, feature_vec) in enumerate(zip(frame_times, feature_matrix)):
-            scores = projection @ feature_vec
+            feature_proj = feature_matrix_scaled[idx]
+            scores = projection @ feature_proj + bias
             # Temperature scales with RMS to produce more dynamic changes.
             temperature = 1.0 + float(feature_vec[0]) * 0.5
             weights[idx] = _softmax(scores, temperature)

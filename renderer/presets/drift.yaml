@@ -1,6 +1,6 @@
 controller:
   preset: drift
-  smoothing_alpha: 0.88
+  smoothing_alpha: 0.95
   anchor_set: drift
   tempo_sync:
     enabled: false

@@ -36,21 +36,38 @@
   "anchor_sets": {
     "baseline": {
       "file": "models/anchors/baseline.npz",
-      "anchor_count": 6,
-      "seed": 20231101,
-      "description": "Default latent anchor basis used for general-purpose renders."
+      "anchor_count": 10,
+      "seed": 20241103,
+      "description": "Default latent anchor basis used for general-purpose renders.",
+      "energy_hint": 1.0028454065322876
     },
     "pulse": {
       "file": "models/anchors/pulse.npz",
-      "anchor_count": 6,
-      "seed": 20231102,
-      "description": "High-energy anchor blend tuned for percussive material."
+      "anchor_count": 10,
+      "seed": 20241103,
+      "description": "High-energy anchor blend tuned for percussive material.",
+      "energy_hint": 1.0016136169433594
     },
     "drift": {
       "file": "models/anchors/drift.npz",
-      "anchor_count": 6,
-      "seed": 20231103,
-      "description": "Slow-evolving ambient anchor blend with softer dynamics."
+      "anchor_count": 10,
+      "seed": 20241103,
+      "description": "Slow-evolving ambient anchor blend with softer dynamics.",
+      "energy_hint": 1.0037111043930054
+    }
+  },
+  "projections": {
+    "baseline": {
+      "file": "models/anchors/baseline_projection.npz",
+      "normalization": "zscore"
+    },
+    "pulse": {
+      "file": "models/anchors/pulse_projection.npz",
+      "normalization": "zscore"
+    },
+    "drift": {
+      "file": "models/anchors/drift_projection.npz",
+      "normalization": "zscore"
     }
   }
 }

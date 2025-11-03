@@ -243,6 +243,8 @@ def _write_run_metadata(
             {
                 "id": summary.track_id,
                 "anchor_set": summary.anchor_set,
+                "preset": summary.applied_preset,
+                "preset_metadata": summary.preset_metadata,
                 "frames": summary.frames,
                 "duration_seconds": summary.duration,
                 "latents": str(summary.latents_path),

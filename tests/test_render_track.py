@@ -65,7 +65,7 @@ def test_render_track_pipeline(tmp_path: Path, monkeypatch) -> None:
     audio_path = tmp_path / "track.wav"
     audio_path.write_bytes(b"audio")
 
-    track = TrackConfig(id="fixture", src=audio_path, preset="baseline", seed=7)
+    track = TrackConfig(id="fixture", src=audio_path, preset="drift", seed=7)
     checkpoint = tmp_path / "vae-best.ckpt"
     checkpoint.write_text("checkpoint")
     config = RenderConfig(
@@ -73,7 +73,7 @@ def test_render_track_pipeline(tmp_path: Path, monkeypatch) -> None:
         frame_rate=30,
         resolution=[1920, 1088],
         audio=AudioConfig(sample_rate=48_000, normalization=-14.0),
-        controller=ControllerConfig(preset="baseline", wander_seed=42),
+        controller=ControllerConfig(preset="default", wander_seed=42),
         decoder=DecoderConfig(batch_size=4, execution_provider="cpu", checkpoint=checkpoint),
         postfx=PostFXConfig(grain_intensity=0.0, motion_trails=False),
         tracks=[track],
@@ -125,6 +125,11 @@ def test_render_track_pipeline(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("renderer.controller.save_latent_result", fake_save_latents)
 
     def fake_from_config(cls, *, config: RenderConfig, track: TrackConfig, feature_layout: FeatureLayout):
+        assert config.controller.preset == "drift"
+        assert config.controller.anchor_set == "drift"
+        assert not config.controller.tempo_sync.enabled
+        assert config.postfx.tone_curve == "pastel"
+
         class _FakeController:
             def generate(self, *, features: FeatureTimeline, seeds: SeedConfig) -> LatentResult:
                 assert features.frame_count == latent_result.frame_count
@@ -158,3 +163,5 @@ def test_render_track_pipeline(tmp_path: Path, monkeypatch) -> None:
     assert summary.checksum == "sha256:deadbeef"
     assert "render_sec" in summary.timings
     assert decoder.calls == [((frames, 8, 16, 16), config.decoder.batch_size)]
+    assert summary.applied_preset == "drift"
+    assert summary.preset_metadata is not None
