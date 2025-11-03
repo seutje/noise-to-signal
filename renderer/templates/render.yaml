@@ -12,7 +12,7 @@ audio:
 
 controller:
   preset: default
-  smoothing_alpha: 0.92
+  smoothing_alpha: 0.82
   wander_seed: 42
   tempo_sync:
     enabled: true

@@ -1,6 +1,6 @@
 controller:
   preset: pulse
-  smoothing_alpha: 0.85
+  smoothing_alpha: 0.74
   anchor_set: pulse
   tempo_sync:
     enabled: true

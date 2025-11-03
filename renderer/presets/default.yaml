@@ -1,6 +1,6 @@
 controller:
   preset: default
-  smoothing_alpha: 0.92
+  smoothing_alpha: 0.82
   anchor_set: baseline
   tempo_sync:
     enabled: true

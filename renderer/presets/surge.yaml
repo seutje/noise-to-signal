@@ -1,6 +1,6 @@
 controller:
   preset: surge
-  smoothing_alpha: 0.83
+  smoothing_alpha: 0.72
   anchor_set: pulse
   tempo_sync:
     enabled: true

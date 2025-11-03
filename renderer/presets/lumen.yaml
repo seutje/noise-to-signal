@@ -1,6 +1,6 @@
 controller:
   preset: lumen
-  smoothing_alpha: 0.9
+  smoothing_alpha: 0.84
   anchor_set: baseline
   tempo_sync:
     enabled: true

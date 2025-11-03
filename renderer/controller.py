@@ -182,8 +182,9 @@ class LatentController:
             feature_dim=int(feature_matrix.shape[1]),
         )
 
-        latents = np.zeros((frame_times.shape[0], *self.latent_shape), dtype=np.float32)
-        weights = np.zeros((frame_times.shape[0], self.anchor_set.anchor_count), dtype=np.float32)
+        frame_total = frame_times.shape[0]
+        latents = np.zeros((frame_total, *self.latent_shape), dtype=np.float32)
+        weights = np.zeros((frame_total, self.anchor_set.anchor_count), dtype=np.float32)
         blended = np.zeros(self.latent_size, dtype=np.float32)
         ema_state = np.zeros_like(blended)
         wander_phase = 0.0
@@ -192,9 +193,19 @@ class LatentController:
         rng = np.random.default_rng(int(seed_value))
         wander_jitter = rng.uniform(0.8, 1.2)
 
-        onset_threshold = 0.65
+        onset_column = feature_matrix[:, 3] if feature_matrix.shape[1] > 3 else np.zeros(frame_total, dtype=np.float32)
+        if onset_column.size and onset_column.max() > 1e-4:
+            upper = float(np.quantile(onset_column, 0.75))
+            median = float(np.quantile(onset_column, 0.5))
+            onset_threshold = float(np.clip(median + (upper - median) * 0.5, 0.2, 0.75))
+        else:
+            onset_threshold = 0.6
+
         tempo_counter = 0
-        tempo_interval = max(1, int(self.frame_rate * self.config.controller.tempo_sync.subdivision))
+        tempo_interval = max(
+            1,
+            int(self.frame_rate * max(self.config.controller.tempo_sync.subdivision, 0.125)),
+        )
 
         for idx, (time_sec, feature_vec) in enumerate(zip(frame_times, feature_matrix)):
             scores = projection @ feature_vec
@@ -209,19 +220,24 @@ class LatentController:
             wander_speed = (0.4 + centroid_norm * 0.5) * wander_jitter
             wander_phase += wander_speed
 
+            onset_power = float(feature_vec[3]) if feature_vec.shape[0] > 3 else 0.0
             if self.tempo_sync.enabled:
                 tempo_counter += 1
-                onset_power = float(feature_vec[3])
                 if onset_power > onset_threshold or tempo_counter >= tempo_interval:
                     tempo_counter = 0
                     wander_phase += np.pi * 0.5
 
-            wander_strength = self.base_wander * (0.25 + rms_norm * 1.35)
+            wander_strength = self.base_wander * (0.25 + rms_norm * 1.35 + onset_power * 0.3)
 
             noise = np.sin(self._wander_offsets + wander_phase * self._wander_speeds)
             latent = blended + noise * wander_strength
 
-            ema_state = self.smoothing * ema_state + (1.0 - self.smoothing) * latent
+            dynamic_smoothing = np.clip(
+                self.smoothing - (rms_norm * 0.35 + onset_power * 0.25),
+                0.35,
+                self.smoothing,
+            )
+            ema_state = dynamic_smoothing * ema_state + (1.0 - dynamic_smoothing) * latent
             latents[idx] = ema_state.reshape(self.latent_shape)
 
         result = LatentResult(

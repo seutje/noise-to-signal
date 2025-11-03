@@ -1,6 +1,6 @@
 controller:
   preset: nocturne
-  smoothing_alpha: 0.975
+  smoothing_alpha: 0.9
   anchor_set: drift
   tempo_sync:
     enabled: false
