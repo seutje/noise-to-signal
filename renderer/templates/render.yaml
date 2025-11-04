@@ -25,6 +25,9 @@ decoder:
   checkpoint: training/outputs/checkpoints/vae-best.ckpt
   use_ema: true
 
+runtime:
+  workers: 1  # number of parallel track rendering processes; set >1 for CPU-only runs
+
 postfx:
   tone_curve: filmlog
   grain_intensity: 0.12

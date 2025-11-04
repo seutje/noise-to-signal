@@ -10,21 +10,175 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed, Future
+from concurrent.futures.process import BrokenProcessPool
+from datetime import datetime, timezone
+from multiprocessing import get_context
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from datetime import datetime, timezone
-
-from .config_schema import RenderConfig, load_render_config
 from . import PACKAGE_ROOT
+from .config_schema import RenderConfig, TrackConfig, load_render_config
+from .controller import get_anchor_sets
 from .decoder import DecoderSession, DecoderUnavailableError
 from .frame_writer import FFMpegError, concat_videos
-from .render_track import render_track, TrackRenderSummary
-from .controller import get_anchor_sets
+from .render_track import TrackRenderSummary, render_track
 
 
 LOG = logging.getLogger("renderer.album")
+_WORKER_DECODER: DecoderSession | None = None
+_WORKER_LOGGING_SETUP: bool = False
+WorkerPayload = tuple[
+    RenderConfig,
+    TrackConfig,
+    Path,
+    dict[str, object],
+    str,
+    bool,
+    bool,
+    int,
+]
+
+
+def _select_mp_context(execution_provider: str):
+    """
+    Choose an appropriate multiprocessing context for worker pools.
+
+    CPU pools can use fork/forkserver on POSIX systems to share decoder memory.
+    CUDA runs stick to spawn to avoid inheriting GPU contexts.
+    """
+    provider = execution_provider.lower()
+    candidates: list[str] = []
+    if provider == "cpu" and os.name != "nt":
+        # Prefer fork for copy-on-write sharing; fall back gracefully if unavailable.
+        candidates.extend(["fork", "forkserver"])
+    candidates.append("spawn")
+
+    last_error: Exception | None = None
+    for method in candidates:
+        try:
+            return get_context(method)
+        except ValueError as exc:  # pragma: no cover - depends on platform
+            last_error = exc
+            continue
+    if last_error is not None:
+        LOG.debug("Falling back to default multiprocessing context due to: %s", last_error)
+    return get_context()
+
+
+def _get_worker_decoder(
+    decoder_kwargs: dict[str, object],
+    *,
+    log_level: int,
+) -> DecoderSession:
+    """
+    Lazily instantiate a decoder per worker process.
+    """
+    global _WORKER_DECODER, _WORKER_LOGGING_SETUP
+    if not _WORKER_LOGGING_SETUP:
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        )
+        _WORKER_LOGGING_SETUP = True
+    if _WORKER_DECODER is None:
+        _WORKER_DECODER = DecoderSession(
+            execution_provider=str(decoder_kwargs["execution_provider"]),
+            batch_size=int(decoder_kwargs["batch_size"]),
+            checkpoint_path=Path(decoder_kwargs["checkpoint_path"]),
+            use_ema=bool(decoder_kwargs["use_ema"]),
+        )
+    return _WORKER_DECODER
+
+
+def _render_track_worker(args: WorkerPayload) -> TrackRenderSummary:
+    (
+        base_config,
+        track,
+        output_dir,
+        decoder_kwargs,
+        ffmpeg_path,
+        keep_frames,
+        preview,
+        log_level,
+    ) = args
+    decoder = _get_worker_decoder(decoder_kwargs, log_level=log_level)
+    # Each process receives its own dataclass copies, so safe to mutate locally.
+    return render_track(
+        track,
+        base_config,
+        output_dir,
+        decoder=decoder,
+        ffmpeg_path=ffmpeg_path,
+        keep_frames=keep_frames,
+        preview=preview,
+    )
+
+
+def _dispatch_parallel_tracks(
+    config: RenderConfig,
+    decoder_kwargs: dict[str, object],
+    *,
+    workers: int,
+    ffmpeg_path: str,
+    keep_frames: bool,
+    preview: bool,
+    log_level: int,
+) -> tuple[List[TrackRenderSummary], List[Path]]:
+    """
+    Render all tracks in parallel worker processes.
+    """
+    results: dict[str, TrackRenderSummary] = {}
+    execution_provider = str(decoder_kwargs.get("execution_provider", "cpu"))
+    ctx = _select_mp_context(execution_provider)
+    LOG.debug("Using multiprocessing start method '%s'", ctx.get_start_method())
+    payloads: List[WorkerPayload] = []
+    for track in config.tracks:
+        track_output = config.output_root / track.id
+        track_output.mkdir(parents=True, exist_ok=True)
+        payloads.append(
+            (
+                config,
+                track,
+                track_output,
+                decoder_kwargs,
+                ffmpeg_path,
+                keep_frames,
+                preview,
+                log_level,
+            )
+        )
+
+    try:
+        with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as executor:
+            futures: List[Future[TrackRenderSummary]] = [
+                executor.submit(_render_track_worker, payload) for payload in payloads
+            ]
+            try:
+                for future in as_completed(futures):
+                    summary = future.result()
+                    if summary:
+                        results[summary.track_id] = summary
+            except Exception:
+                for pending in futures:
+                    pending.cancel()
+                raise
+    except BrokenProcessPool as exc:
+        raise RuntimeError(
+            "Parallel track rendering failed because a worker exited unexpectedly. "
+            "Reduce 'runtime.workers', lower 'decoder.batch_size', or inspect system logs for OOM/segfault details."
+        ) from exc
+
+    summaries: List[TrackRenderSummary] = []
+    videos: List[Path] = []
+    for track in config.tracks:
+        summary = results.get(track.id)
+        if summary:
+            summaries.append(summary)
+            videos.append(summary.video_path)
+    return summaries, videos
 
 
 def _setup_logging(verbose: bool) -> None:
@@ -81,6 +235,7 @@ def render_album(
     keep_frames: bool = False,
     ffmpeg_path: str = "ffmpeg",
     skip_previews: bool = False,
+    workers: Optional[int] = None,
 ) -> None:
     """Render each track defined in the configuration."""
     _setup_logging(verbose)
@@ -105,34 +260,90 @@ def render_album(
 
     track_summaries: List[TrackRenderSummary] = []
     track_videos: List[Path] = []
-
+    requested_workers = workers if workers is not None else config.runtime.workers
     try:
-        decoder = DecoderSession(
-            execution_provider=config.decoder.execution_provider,
-            batch_size=config.decoder.batch_size,
-            checkpoint_path=config.decoder.checkpoint,
-            use_ema=config.decoder.use_ema,
+        worker_count = int(requested_workers)
+    except (TypeError, ValueError):
+        LOG.warning(
+            "Invalid worker count '%s'; falling back to a single worker.",
+            requested_workers,
         )
-    except DecoderUnavailableError as exc:
-        LOG.error("Decoder initialisation failed: %s", exc)
-        raise
+        worker_count = 1
+    if worker_count < 1:
+        LOG.warning("Worker count %s is below 1; using 1.", worker_count)
+        worker_count = 1
+    max_workers = os.cpu_count() or 1
+    if worker_count > max_workers:
+        LOG.warning(
+            "Requested %d workers exceeds available CPU cores (%d); capping to %d.",
+            worker_count,
+            max_workers,
+            max_workers,
+        )
+        worker_count = max_workers
+    if worker_count > len(config.tracks):
+        worker_count = len(config.tracks)
+        LOG.debug(
+            "Capping workers to number of tracks (%d).",
+            worker_count,
+        )
+    decoder_provider = config.decoder.execution_provider.lower()
+    if worker_count > 1 and decoder_provider == "cuda":
+        LOG.warning(
+            "Parallel track rendering is disabled for CUDA execution; "
+            "falling back to a single worker."
+        )
+        worker_count = 1
 
-    for track in config.tracks:
-        LOG.info("Rendering track '%s' from %s", track.id, track.src)
-        track_output = config.output_root / track.id
-        track_output.mkdir(parents=True, exist_ok=True)
-        summary = render_track(
-            track,
+    decoder_kwargs = {
+        "execution_provider": config.decoder.execution_provider,
+        "batch_size": config.decoder.batch_size,
+        "checkpoint_path": config.decoder.checkpoint,
+        "use_ema": config.decoder.use_ema,
+    }
+
+    if worker_count > 1 and len(config.tracks) > 1:
+        LOG.info("Parallel rendering enabled with %d workers.", worker_count)
+        log_level = logging.DEBUG if verbose else logging.INFO
+        summaries, videos = _dispatch_parallel_tracks(
             config,
-            track_output,
-            decoder=decoder,
+            decoder_kwargs,
+            workers=worker_count,
             ffmpeg_path=ffmpeg_path,
             keep_frames=keep_frames,
             preview=not skip_previews,
+            log_level=log_level,
         )
-        if summary:
-            track_summaries.append(summary)
-            track_videos.append(summary.video_path)
+        track_summaries.extend(summaries)
+        track_videos.extend(videos)
+    else:
+        try:
+            decoder = DecoderSession(
+                execution_provider=config.decoder.execution_provider,
+                batch_size=config.decoder.batch_size,
+                checkpoint_path=config.decoder.checkpoint,
+                use_ema=config.decoder.use_ema,
+            )
+        except DecoderUnavailableError as exc:
+            LOG.error("Decoder initialisation failed: %s", exc)
+            raise
+
+        for track in config.tracks:
+            LOG.info("Rendering track '%s' from %s", track.id, track.src)
+            track_output = config.output_root / track.id
+            track_output.mkdir(parents=True, exist_ok=True)
+            summary = render_track(
+                track,
+                config,
+                track_output,
+                decoder=decoder,
+                ffmpeg_path=ffmpeg_path,
+                keep_frames=keep_frames,
+                preview=not skip_previews,
+            )
+            if summary:
+                track_summaries.append(summary)
+                track_videos.append(summary.video_path)
 
     if len(track_videos) > 1:
         album_path = config.output_root / "album.mp4"
@@ -208,6 +419,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--no-previews",
         action="store_true",
         help="Disable preview PNG/GIF generation.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Number of parallel worker processes for track rendering.",
     )
     parser.add_argument(
         "--list-presets",
@@ -303,6 +520,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         keep_frames=args.keep_frames,
         ffmpeg_path=args.ffmpeg,
         skip_previews=args.no_previews,
+        workers=args.workers,
     )
 
 

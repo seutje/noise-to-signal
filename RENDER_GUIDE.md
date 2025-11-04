@@ -13,6 +13,7 @@ The renderer translates offline audio tracks into latent trajectories for the β
 - `render.yaml`: Entry configuration (copy of `renderer/templates/render.yaml`).
 - `renderer/presets/*.yaml`: Partial overlays merged via `--preset`.
 - `models/meta.json`: Contains latent shape and anchor set references (`models/anchors/*.npz`).
+- `runtime.workers`: Optional track-level parallelism (set >1 for CPU-only renders).
 
 Use `python -m renderer.render_album --list-presets` to print preset overlays and anchor sets.
 
@@ -93,9 +94,12 @@ python -m renderer.render_album --config render.yaml --dry-run
 python -m renderer.render_album --config render.yaml --preset pulse --set controller.wander_seed=99
 python -m renderer.render_album --config render.yaml --track opening --verbose --keep-frames
 python -m renderer.render_album --config render.yaml --ffmpeg /usr/local/bin/ffmpeg --no-previews
+python -m renderer.render_album --config render.yaml --workers 3  # CPU-only parallel tracks
 ```
 
 Dry runs emit the planned actions without touching caches. Real runs populate feature caches, latent trajectories, per-track MP4s, preview assets, and `run.json`. Use `--keep-frames` to retain intermediate PNG sequences and `--no-previews` to skip GIF/PNG generation for batch jobs.
+When setting `runtime.workers` (or `--workers`), parallel track rendering is enabled for CPU execution. CUDA runs remain single-process to keep decoder ownership exclusive to one GPU context.
+Large worker counts multiply decoder memory usage (each worker loads its own PyTorch checkpoint). If the OS kills a worker, reduce `runtime.workers` or lower `decoder.batch_size` and rerun.
 
 ## 7. Next Steps (Phases 5-6)
 

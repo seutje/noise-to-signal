@@ -117,6 +117,15 @@ class DecoderConfig:
 
 
 @dataclass(slots=True)
+class RuntimeConfig:
+    workers: int = 1
+
+    def validate(self) -> None:
+        if self.workers <= 0:
+            raise ValueError("runtime.workers must be > 0.")
+
+
+@dataclass(slots=True)
 class PostFXConfig:
     tone_curve: str = "filmlog"
     grain_intensity: float = 0.1
@@ -158,6 +167,7 @@ class RenderConfig:
     audio: AudioConfig = field(default_factory=AudioConfig)
     controller: ControllerConfig = field(default_factory=ControllerConfig)
     decoder: DecoderConfig = field(default_factory=DecoderConfig)
+    runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     postfx: PostFXConfig = field(default_factory=PostFXConfig)
     tracks: List[TrackConfig] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -175,6 +185,7 @@ class RenderConfig:
         self.audio.validate()
         self.controller.validate()
         self.decoder.validate()
+        self.runtime.validate()
         self.postfx.validate()
         if not self.tracks:
             raise ValueError("At least one track entry is required.")
@@ -206,6 +217,9 @@ class RenderConfig:
                 "execution_provider": self.decoder.execution_provider,
                 "checkpoint": str(self.decoder.checkpoint),
                 "use_ema": self.decoder.use_ema,
+            },
+            "runtime": {
+                "workers": self.runtime.workers,
             },
             "postfx": {
                 "tone_curve": self.postfx.tone_curve,
@@ -382,6 +396,7 @@ def _parse_config_mapping(
     postfx_cfg = mapping.get("postfx", {})
     tracks_cfg = mapping.get("tracks") or []
     metadata_cfg = mapping.get("metadata", {})
+    runtime_cfg = mapping.get("runtime", {})
 
     checkpoint_value = decoder_cfg.get("checkpoint")
     if checkpoint_value:
@@ -422,6 +437,9 @@ def _parse_config_mapping(
             ).lower(),
             checkpoint=checkpoint_path,
             use_ema=bool(decoder_cfg.get("use_ema", True)),
+        ),
+        runtime=RuntimeConfig(
+            workers=int(runtime_cfg.get("workers", 1)),
         ),
         postfx=PostFXConfig(
             tone_curve=str(postfx_cfg.get("tone_curve", "filmlog")),

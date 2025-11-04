@@ -20,10 +20,13 @@ controller:
   anchor_set: baseline
 
 decoder:
-  batch_size: 32
+  batch_size: 64
   execution_provider: cuda
   checkpoint: training/outputs/checkpoints/vae-best.ckpt
   use_ema: true
+
+runtime:
+  workers: 1  # increase for CPU-only parallel track decoding
 
 postfx:
   tone_curve: filmlog
@@ -49,7 +52,7 @@ tracks:
     src: "album/02 - Seed 42.mp3"
     preset: surge
     anchors: pulse
-    seed: 142
+    seed: 42
   - id: static-saint
     src: "album/03 - Static Saint.mp3"
     preset: lumen
