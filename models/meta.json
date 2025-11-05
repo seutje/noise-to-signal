@@ -54,6 +54,69 @@
       "seed": 20241103,
       "description": "Slow-evolving ambient anchor blend with softer dynamics.",
       "energy_hint": 1.0037111043930054
+    },
+    "null-hypothesis": {
+      "file": "models/anchors/null-hypothesis.npz",
+      "anchor_count": 10,
+      "seed": 20241104,
+      "description": "Per-track anchor pack for Null Hypothesis (baseline blend).",
+      "energy_hint": 1.0028454065322876
+    },
+    "seed-42": {
+      "file": "models/anchors/seed-42.npz",
+      "anchor_count": 10,
+      "seed": 20241105,
+      "description": "Per-track anchor pack for Seed 42 (pulse blend).",
+      "energy_hint": 1.0016136169433594
+    },
+    "static-saint": {
+      "file": "models/anchors/static-saint.npz",
+      "anchor_count": 10,
+      "seed": 20241106,
+      "description": "Per-track anchor pack for Static Saint (baseline blend).",
+      "energy_hint": 1.0028454065322876
+    },
+    "delta-form": {
+      "file": "models/anchors/delta-form.npz",
+      "anchor_count": 10,
+      "seed": 20241107,
+      "description": "Per-track anchor pack for ΔForm (baseline blend).",
+      "energy_hint": 1.0028454065322876
+    },
+    "standard-deviation": {
+      "file": "models/anchors/standard-deviation.npz",
+      "anchor_count": 10,
+      "seed": 20241108,
+      "description": "Per-track anchor pack for Standard Deviation (pulse blend).",
+      "energy_hint": 1.0016136169433594
+    },
+    "checksum-failed": {
+      "file": "models/anchors/checksum-failed.npz",
+      "anchor_count": 10,
+      "seed": 20241109,
+      "description": "Per-track anchor pack for Checksum Failed (baseline blend).",
+      "energy_hint": 1.0028454065322876
+    },
+    "fragments-of-reality": {
+      "file": "models/anchors/fragments-of-reality.npz",
+      "anchor_count": 10,
+      "seed": 20241110,
+      "description": "Per-track anchor pack for Fragments of Reality (drift blend).",
+      "energy_hint": 1.0037111043930054
+    },
+    "magic-number": {
+      "file": "models/anchors/magic-number.npz",
+      "anchor_count": 10,
+      "seed": 20241111,
+      "description": "Per-track anchor pack for Magic Number (baseline blend).",
+      "energy_hint": 1.0028454065322876
+    },
+    "ghost-signal": {
+      "file": "models/anchors/ghost-signal.npz",
+      "anchor_count": 10,
+      "seed": 20241112,
+      "description": "Per-track anchor pack for Ghost Signal (drift blend).",
+      "energy_hint": 1.0037111043930054
     }
   },
   "projections": {
@@ -67,6 +130,42 @@
     },
     "drift": {
       "file": "models/anchors/drift_projection.npz",
+      "normalization": "zscore"
+    },
+    "null-hypothesis": {
+      "file": "models/anchors/null-hypothesis_projection.npz",
+      "normalization": "zscore"
+    },
+    "seed-42": {
+      "file": "models/anchors/seed-42_projection.npz",
+      "normalization": "zscore"
+    },
+    "static-saint": {
+      "file": "models/anchors/static-saint_projection.npz",
+      "normalization": "zscore"
+    },
+    "delta-form": {
+      "file": "models/anchors/delta-form_projection.npz",
+      "normalization": "zscore"
+    },
+    "standard-deviation": {
+      "file": "models/anchors/standard-deviation_projection.npz",
+      "normalization": "zscore"
+    },
+    "checksum-failed": {
+      "file": "models/anchors/checksum-failed_projection.npz",
+      "normalization": "zscore"
+    },
+    "fragments-of-reality": {
+      "file": "models/anchors/fragments-of-reality_projection.npz",
+      "normalization": "zscore"
+    },
+    "magic-number": {
+      "file": "models/anchors/magic-number_projection.npz",
+      "normalization": "zscore"
+    },
+    "ghost-signal": {
+      "file": "models/anchors/ghost-signal_projection.npz",
       "normalization": "zscore"
     }
   }
