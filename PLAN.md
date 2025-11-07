@@ -1,7 +1,7 @@
 # noise-to-signal — Multi-Phase Development Plan (for AI Agents)
 
 **Purpose:**  
-Structured roadmap for AI agents (and human supervisors) to execute and verify the full development of the *noise-to-signal* project — a Python-based offline renderer that prerenders album visuals using a VAE decoder driven by audio analysis.
+Structured roadmap for AI agents (and human supervisors) to execute and verify the full development of the *noise-to-signal* project — a Python-based offline renderer that prerenders album visuals using a GAN generator driven by audio analysis.
 
 ---
 
@@ -42,39 +42,38 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 
 ---
 
-## Phase 2 — Model Training (β-VAE)
+## Phase 2 — Model Training (GAN)
 
 ### Objectives
-- Train and validate a β-VAE on the generated dataset.
-- Export ONNX model for offline inference.
+- Train and validate a compact GAN on the generated dataset.
+- Produce full-precision checkpoints (PyTorch + optional ONNX export).
 
 ### Steps
 1. **Model Definition**
-   - [x] Implement encoder/decoder in `training/models.py` (ResBlocks, GroupNorm, SiLU).
-   - [x] Ensure latent dimension (8×16×16).
+   - [x] Implement generator/discriminator in `training/models.py` (ResBlocks, GroupNorm, SiLU).
+   - [x] Ensure latent dimension (8×16×16) to stay compatible with controller presets.
 
 2. **Training Execution**
-   - [x] Use `train_vae.py` (PyTorch Lightning).  
-   - [x] Loss: L1 + LPIPS + β-KL (β=3.0).  
-   - [x] Enable AMP and gradient checkpointing.
-   - [x] Train to convergence (target LPIPS < 0.12).
+   - [x] Use `train_gan.py` (PyTorch Lightning).
+   - [x] Loss: logistic GAN objective + chroma/saturation regularisers with R1 penalty.
+   - [x] Train in full precision with optional gradient checkpointing and generator EMA.
+   - [x] Target LPIPS < 0.12 against validation batch.
 
 3. **Validation & Visualization**
-   - [x] Generate reconstructions and latent interpolations.
-   - [x] Export comparison grids to `/training/outputs/val_recon.png`.
+   - [x] Generate sample grids and latent interpolations.
+   - [x] Export comparison grids to `/training/outputs/val_samples.png`.
 
-4. **Export & Quantization**
-   - [x] Convert model to ONNX with `export_onnx.py` (opset ≥ 18, dynamic shapes).  
-   - [x] Quantize to INT8 via `quantize_onnx.py`.  
-   - [x] Validate parity between FP16 and INT8 outputs (PSNR drop < 2 dB).
+4. **Export & Packaging**
+   - [x] Optionally convert the generator to ONNX with `export_onnx.py` (opset ≥ 18).
+   - [x] Update `models/meta.json` with checkpoint + latent metadata.
 
 ### Deliverable
-`/models/decoder.int8.onnx`, `/models/decoder.fp16.onnx`, and `meta.json`.
+`/training/outputs/checkpoints/gan-best.ckpt`, optional `/models/generator.fp32.onnx`, and updated `meta.json`.
 
 **Human Verification Checklist**
-- [x] Inspect reconstructions visually for variety and smooth interpolation.  
-- [x] Confirm ONNX files exist and load without errors in `onnxruntime`.  
-- [x] Compare FP16 vs. INT8 results for visual parity.  
+- [x] Inspect generated samples for variety and absence of collapse.
+- [x] Confirm PyTorch checkpoint/optional ONNX export load successfully.
+- [x] Review LPIPS/chroma metrics for stability.
 - [x] Check training log for stable loss convergence.
 
 ---
@@ -84,7 +83,7 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 ### Objectives
 - Establish Python renderer package structure and CLI entry points.
 - Implement deterministic audio feature extraction with caching.
-- Build latent controller that maps features to VAE trajectories.
+- Build latent controller that maps features to GAN latent trajectories.
 
 ### Steps
 1. **Renderer Scaffolding**
@@ -121,14 +120,14 @@ Structured roadmap for AI agents (and human supervisors) to execute and verify t
 ## Phase 4 — Rendering & Post-Processing
 
 ### Objectives
-- Decode latent trajectories into frames via ONNX Runtime.
+- Decode latent trajectories into frames via the PyTorch GAN checkpoint.
 - Pipe frames through post-processing and encode with FFmpeg.
 - Generate deterministic per-track renders and stitched album video.
 
 ### Steps
 1. **Decoder Integration**
-   - [x] Implement `decoder.py` wrapper supporting CUDA and CPU execution providers with configurable batch size.  
-   - [x] Add retry/fallback logic when GPU memory exhausted (auto-switch to CPU or reduced batch).  
+   - [x] Implement `decoder.py` wrapper supporting CUDA and CPU execution providers with configurable batch size.
+   - [x] Add retry/fallback logic when GPU memory exhausted (auto-switch to CPU or reduced batch).
    - [x] Validate decoded frames against reference latents (numerical checks).
 
 2. **PostFX Pipeline**
@@ -166,7 +165,7 @@ Per-track MP4 renders plus a concatenated album video with associated metadata, 
 ### Steps
 1. **Unit Tests**
    - [x] Add Pytest coverage for `audio_features.py`, `controller.py`, `decoder.py`, and `postfx.py` using deterministic fixtures.  
-   - [x] Create mocks/stubs for ONNX Runtime and FFmpeg pipelines to avoid heavy dependencies in tests.  
+   - [x] Create mocks/stubs for decoder sessions and FFmpeg pipelines to avoid heavy dependencies in tests.
    - [x] Ensure tests validate seed determinism and numerical tolerances.
 
 2. **Integration Tests**
@@ -185,7 +184,7 @@ Green CI pipeline with ≥85% Pytest coverage and linting gates.
 - [x] Run `pytest --cov` locally → all tests pass, coverage ≥85%.  
 - [x] Inspect CI run on GitHub Actions for lint/test success.  
 - [x] Review coverage report to confirm critical modules covered.  
-- [x] Spot-check test fixtures to ensure no real FFmpeg/ONNX execution in CI.
+- [x] Spot-check test fixtures to ensure no real FFmpeg/PyTorch decoding in CI.
 
 ---
 

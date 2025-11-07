@@ -40,3 +40,6 @@ yarn-error.log*
 */__pycache__/*
 
 /training/outputs/checkpoints/*.ckpt
+
+/training/outputs/*.png
+/training/outputs/lightning_logs

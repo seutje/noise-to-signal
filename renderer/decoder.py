@@ -1,11 +1,4 @@
-"""
-PyTorch checkpoint-backed decoder for the noise-to-signal renderer.
-
-The decoder loads the β-VAE weights from a Lightning checkpoint and performs
-batched inference using PyTorch. This replaces the earlier ONNX Runtime path,
-which was required for the in-browser demo but is unnecessary for the Python
-prerender pipeline.
-"""
+"""Utilities for loading the GAN generator checkpoint and decoding latents."""
 
 from __future__ import annotations
 
@@ -16,19 +9,17 @@ from typing import Optional
 import numpy as np
 import torch
 
-from training.train_vae import BetaVAELightning
+from training.train_gan import GANLightning
 
 from . import PACKAGE_ROOT
 
 LOG = logging.getLogger("renderer.decoder")
 
-DEFAULT_CHECKPOINT = (
-    PACKAGE_ROOT.parent / "training" / "outputs" / "checkpoints" / "vae-best.ckpt"
-)
+DEFAULT_CHECKPOINT = PACKAGE_ROOT.parent / "training" / "outputs" / "checkpoints" / "gan-best.ckpt"
 
 
 class DecoderUnavailableError(RuntimeError):
-    """Raised when the decoder cannot be initialised."""
+    """Raised when the generator checkpoint cannot be located."""
 
 
 class DecoderExecutionError(RuntimeError):
@@ -37,7 +28,7 @@ class DecoderExecutionError(RuntimeError):
 
 class DecoderSession:
     """
-    Thin wrapper around a β-VAE decoder loaded from a Lightning checkpoint.
+    Thin wrapper around a GAN generator loaded from a Lightning checkpoint.
 
     Parameters
     ----------
@@ -48,7 +39,7 @@ class DecoderSession:
         Default number of frames decoded per batch.
     checkpoint_path:
         Optional override for the checkpoint path. Defaults to
-        `training/outputs/checkpoints/vae-best.ckpt`.
+        `training/outputs/checkpoints/gan-best.ckpt`.
     use_ema:
         When True and the checkpoint includes EMA weights, they are applied
         before inference to match training-time evaluation.
@@ -70,7 +61,7 @@ class DecoderSession:
         self._checkpoint = Path(checkpoint_path) if checkpoint_path else DEFAULT_CHECKPOINT
         if not self._checkpoint.is_file():
             raise DecoderUnavailableError(
-                f"Decoder checkpoint not found at {self._checkpoint}"
+                f"Generator checkpoint not found at {self._checkpoint}"
             )
 
         self._device, actual_provider = self._select_device(self._requested_provider)
@@ -170,20 +161,20 @@ class DecoderSession:
         checkpoint: Path,
         use_ema: bool,
     ) -> tuple[torch.nn.Module, tuple[int, int, int], str]:
-        LOG.info("Loading decoder checkpoint from %s", checkpoint)
-        model = BetaVAELightning.load_from_checkpoint(str(checkpoint), map_location="cpu")
+        LOG.info("Loading generator checkpoint from %s", checkpoint)
+        model = GANLightning.load_from_checkpoint(str(checkpoint), map_location="cpu")
 
-        if use_ema and getattr(model, "ema", None) is not None:
-            model.ema.copy_to(model.model.decoder)
+        if use_ema and getattr(model, "generator_ema", None) is not None:
+            generator = model.generator_ema
             precision = "fp32-ema"
         else:
+            generator = model.generator
             precision = "fp32"
 
-        decoder = model.model.decoder.float()
-        latent = model.model.latent
+        decoder = generator.float()
+        latent = model.latent
         latent_shape = (latent.channels, latent.height, latent.width)
 
-        # Release Lightning module to free CPU memory.
         del model
 
         return decoder, latent_shape, precision
@@ -198,59 +189,22 @@ class DecoderSession:
             decoded = self._decoder(tensor)
         return decoded
 
-    def _handle_runtime_error(self, exc: RuntimeError, batch: int) -> bool:
-        message = str(exc).lower()
-        if "out of memory" in message and self._device.type == "cuda":
-            new_batch = max(1, batch // 2)
-            if new_batch == batch:
-                new_batch = 1
-            if new_batch == 0:
-                new_batch = 1
-            LOG.warning(
-                "CUDA OOM encountered (batch=%d); retrying with batch=%d",
-                batch,
-                new_batch,
-            )
-            torch.cuda.empty_cache()
-            self._default_batch = new_batch
-            return True
-
-        if self._device.type == "cuda":
-            LOG.warning(
-                "Decoder error on CUDA ('%s'); switching to CPU fallback.",
-                exc,
-            )
-            self._fallback_to_cpu()
-            return True
-
-        return False
-
-    def _fallback_to_cpu(self) -> None:
-        if self._device.type == "cpu":
-            return
-        self._device = torch.device("cpu")
-        self._current_provider = "cpu"
-        self._decoder = self._decoder.to(self._device)
-        self._default_batch = min(self._default_batch, 8)
-        LOG.info("Decoder switched to CPU fallback.")
-
-    def _postprocess(self, tensor: torch.Tensor) -> torch.Tensor:
-        tensor = tensor.clamp(-1.0, 1.0)
-        tensor = tensor.mul_(0.5).add_(0.5)
-        tensor = tensor.clamp_(0.0, 1.0)
-        return tensor.permute(0, 2, 3, 1).contiguous()
+    def _postprocess(self, frames: torch.Tensor) -> torch.Tensor:
+        frames = frames.clamp(-1.0, 1.0)
+        frames = (frames + 1.0) * 0.5
+        frames = frames.permute(0, 2, 3, 1)
+        return frames
 
     def _validate_frames(self, frames: np.ndarray) -> None:
-        if not np.all(np.isfinite(frames)):
-            raise DecoderExecutionError("Decoded frames contain non-finite values.")
-        if frames.size == 0:
-            raise DecoderExecutionError("No frames were decoded.")
-        if np.max(frames) <= 0.0:
-            raise DecoderExecutionError("Decoded frames appear to be empty (all zeros).")
+        if np.isnan(frames).any():
+            raise DecoderExecutionError("Decoder produced NaN values.")
+        if np.isinf(frames).any():
+            raise DecoderExecutionError("Decoder produced inf values.")
 
-
-__all__ = [
-    "DecoderSession",
-    "DecoderUnavailableError",
-    "DecoderExecutionError",
-]
+    def _handle_runtime_error(self, exc: RuntimeError, batch: int) -> bool:
+        message = str(exc).lower()
+        if "out of memory" in message and self._device.type == "cuda" and batch > 1:
+            LOG.warning("Decoder OOM on batch size %d; retrying with %d", batch, batch // 2)
+            self._default_batch = max(1, batch // 2)
+            return True
+        return False

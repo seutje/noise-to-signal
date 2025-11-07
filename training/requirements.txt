@@ -11,4 +11,3 @@ pytorch-lightning>=2.1.0
 lpips>=0.1.4
 numpy>=1.24.0
 onnx>=1.14.0
-onnxruntime>=1.16.0

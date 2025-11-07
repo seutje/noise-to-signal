@@ -1,11 +1,11 @@
 # noise-to-signal Renderer Guide
 
 ## 1. Overview
-The renderer translates offline audio tracks into latent trajectories for the β-VAE decoder. It performs three primary steps:
+The renderer translates offline audio tracks into latent trajectories for the GAN generator. It performs three primary steps:
 
 1. **Feature Extraction** – Deterministic metrics from source audio (`renderer/audio_features.py`).
 2. **Latent Control** – Anchor blending, smoothing, and wander layers (`renderer/controller.py`).
-3. **Decoding & PostFX** – ONNX Runtime decoder batches latent tensors and applies tone mapping / vignette / grain (`renderer/decoder.py`, `renderer/postfx.py`).
+3. **Decoding & PostFX** – PyTorch-based decoder batches latent tensors and applies tone mapping / vignette / grain (`renderer/decoder.py`, `renderer/postfx.py`).
 4. **Encoding & Packaging** – `renderer/frame_writer.py` streams frames to FFmpeg, emits previews, and `renderer/render_album.py` orchestrates album concatenation.
 
 ## 2. Configuration Files
@@ -73,8 +73,8 @@ Invoking `python -m renderer.render_album` creates `<output_root>/run.json` with
       "features_cache": "cache/features/opening.npz",
       "feature_checksum": "...",
       "video_checksum": "...",
-      "decoder_provider": "CUDAExecutionProvider",
-      "decoder_precision": "int8",
+        "decoder_provider": "cuda",
+        "decoder_precision": "fp32-ema",
       "timings": {
         "features_sec": 8.23,
         "controller_sec": 2.11,

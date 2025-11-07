@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
-
 import numpy as np
 import pytest
 import torch
@@ -30,8 +28,9 @@ class _ExplodingDecoder(torch.nn.Module):
 
 class _DummyLightning:
     def __init__(self, module: torch.nn.Module) -> None:
-        self.model = SimpleNamespace(decoder=module, latent=_FakeLatent())
-        self.ema = None
+        self.generator = module
+        self.latent = _FakeLatent()
+        self.generator_ema = None
 
     @classmethod
     def load_from_checkpoint(cls, *_args, **_kwargs) -> "_DummyLightning":  # type: ignore[override]
@@ -42,7 +41,7 @@ def _install_dummy_loader(monkeypatch: pytest.MonkeyPatch, module: torch.nn.Modu
     def _loader(*_args, **_kwargs) -> _DummyLightning:
         return _DummyLightning(module)
 
-    monkeypatch.setattr(decoder, "BetaVAELightning", _DummyLightning)
+    monkeypatch.setattr(decoder, "GANLightning", _DummyLightning)
     monkeypatch.setattr(_DummyLightning, "load_from_checkpoint", classmethod(_loader))
 
 

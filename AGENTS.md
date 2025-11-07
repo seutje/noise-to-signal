@@ -178,7 +178,7 @@ This file serves as a chronological record of decisions, discoveries, experiment
 ```
 2025-11-01 14:45 UTC — TrainingAgent
 Phase 2: β-VAE training run completed on dataset v0.3.
-Results: LPIPS=0.109, FID=27.4. Exported model to /models/decoder.fp16.onnx.
+Results: LPIPS=0.109, FID=27.4. Exported generator to /models/generator.fp32.onnx.
 Cross-ref: PLAN.md §2, DESIGN.md §5.1
 ```
 

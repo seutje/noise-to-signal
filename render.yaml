@@ -22,7 +22,7 @@ controller:
 decoder:
   batch_size: 64
   execution_provider: cuda
-  checkpoint: training/outputs/checkpoints/vae-best.ckpt
+  checkpoint: training/outputs/checkpoints/gan-best.ckpt
   use_ema: true
 
 runtime:

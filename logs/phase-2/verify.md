@@ -1,10 +1,10 @@
 # Phase 2 — Verification
 
-- [x] Reconstructions captured (`training/outputs/val_recon.png`) and reviewed for quality.
-- [x] FP16 decoder (`models/decoder.fp16.onnx`) exports without runtime loading errors.
-- [x] INT8 decoder (`models/decoder.int8.onnx`) parity confirmed (PSNR drop < 2 dB).
-- [x] Training logs checked for stable convergence and overfitting.
-- [x] `models/meta.json` updated with export + quantization metadata.
-- [x] DEVLOG entry reviewed and acknowledged.
+- [ ] Sample grids captured (`training/outputs/val_samples.png`) and reviewed for quality.
+- [ ] Generator checkpoint (`training/outputs/checkpoints/gan-best.ckpt`) exports without runtime loading errors.
+- [ ] Optional ONNX export (`models/generator.fp32.onnx`) validated in PyTorch/onnxruntime.
+- [ ] Training logs checked for stable convergence and absence of mode collapse.
+- [ ] `models/meta.json` updated with checkpoint + latent metadata.
+- [ ] DEVLOG entry reviewed and acknowledged.
 
 

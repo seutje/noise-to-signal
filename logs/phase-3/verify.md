@@ -1,8 +1,8 @@
 # Phase 3 — Verification Checklist
 
-- [ ] Open `site/index.html` locally and confirm visuals respond to audio playback (file loader or album playlist).
-- [ ] Toggle between Canvas and Three.js renderers; ensure both decode frames and respect quality settings.
-- [ ] Validate UI controls: play/pause, prev/next (when playlist available), seek, sensitivity, smoothing, quality selector.
-- [ ] Start/stop recording (`● Record` → `■ Stop`) and confirm saved WebM playback.
+- [ ] Run `python renderer/render_album.py --config render.yaml --dry-run` and confirm CLI enumerates tracks without errors.
+- [ ] Execute a short render on CPU to verify PyTorch checkpoint loading (`renderer/decoder.py`).
+- [ ] Inspect generated metadata (`renders/<run>/run.json`) for seeds, presets, and decoder provider info.
+- [ ] Confirm docs (DESIGN.md, PLAN.md, RENDER_GUIDE.md) reflect GAN + Python runtime scope.
 
-> Human supervisor: complete the checks above once browser validation passes. Update `PLAN.md` Phase 3 checklist accordingly.
+> Human supervisor: complete the checks above once offline renderer validation passes. Update `PLAN.md` Phase 3 checklist accordingly.
