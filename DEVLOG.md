@@ -54,3 +54,5 @@ Hardened CPU track workers: select fork-based multiprocessing when safe, cap wor
 Created unique per-track anchor packs by perturbing baseline/pulse/drift latent bases with track seeds and regenerating aligned projection matrices; saved results under `models/anchors/<track>.npz` plus `_projection` variants and updated `models/meta.json` references. Ensures each playlist cue drives a distinct anchor blend while preserving reproducible energy profiles. Cross-ref: PLAN.md §4, DESIGN.md §7.2.
 2025-11-05 12:00 UTC — ArchitectAgent
 Retargeted the project to a GAN-based pipeline: replaced the β-VAE model/training harness with GAN generator/discriminator modules (`training/models.py`, `training/train_gan.py`), switched renderer loading to Lightning checkpoints (`renderer/decoder.py`), removed browser artifacts and INT8 quantization utilities, and refreshed docs/logs to highlight fp32 PyTorch inference. Cross-ref: DESIGN.md §5–6, PLAN.md §2–3.
+2026-01-12 20:00 UTC — DocumentationAgent
+Created repository README with overview, setup, rendering workflow, training notes, and testing guidance. Cross-ref: DESIGN.md, PLAN.md, RENDER_GUIDE.md, AGENTS.md.
