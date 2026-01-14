@@ -125,9 +125,3 @@ black --check renderer tests
 - `RENDER_GUIDE.md`: renderer usage details
 - `AGENTS.md`: collaboration rules and logging protocol
 - `DEVLOG.md`: append-only development log
-
-## Asset licensing
-
-Large assets are tracked with Git LFS. Audio and dataset licensing guidance is documented in
-Phase 6 of `PLAN.md`. If `DATA_LICENSE.md` and `AUDIO_LICENSE.md` are absent in your checkout,
-ensure you have the rights to the assets you add or replace.
